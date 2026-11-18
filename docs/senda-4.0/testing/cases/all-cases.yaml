@@ -1,0 +1,1234 @@
+# Structured lock scenarios — Senda 4.0
+# Schema: ./schema.yaml | Fixtures: ../fixtures/pilot-zw.yaml
+version: 1
+fixture_file: ../fixtures/pilot-zw.yaml
+
+cases:
+  # ── Lock #1 Dogfood ───────────────────────────────────────────
+  - id: DF-01
+    title: Dogfood happy path without live MTO
+    domain: Surface
+    locks: ["1", "10"]
+    type: happy
+    fixtures: [institution, links, obligations, dogfood]
+    steps:
+      - load fixture pilot-zw
+      - dogfood.validate link_code=HDA-ADA-001 obligation_id=obl_001
+      - dogfood.instruct idempotency_key=df-01
+      - dogfood.confirm matching ref+amount+currency
+      - dogfood.fetch_proof
+    expect:
+      status: proven
+      proof: true
+      live_mto_required: false
+    pass_criteria: Full validate→instruct→confirm→proof completes in dogfood; proof JSON available.
+
+  - id: DF-02
+    title: Dogfood shares Connect domain objects
+    domain: Attempt
+    locks: ["1", "9"]
+    type: edge
+    fixtures: [dogfood]
+    steps:
+      - inspect Attempt/Instruction/Confirmation/Proof created via dogfood
+      - compare schema to Connect contract
+    expect:
+      status: policy_ok
+      same_schema_as_connect: true
+    pass_criteria: Dogfood writes the same domain objects Connect would.
+
+  - id: DF-03
+    title: Dogfood stays thin (no consumer remittance UI)
+    domain: Surface
+    locks: ["1"]
+    type: policy
+    fixtures: [dogfood]
+    steps:
+      - inventory dogfood screens/routes
+    expect:
+      status: policy_ok
+      forbidden_features: [fx_rates_ui, multi_recipient_consumer, senda_settles]
+    pass_criteria: Only instruct/confirm/proof (and minimal ops); no consumer remittance product.
+
+  - id: DF-04
+    title: Dogfood cannot become senda_settles
+    domain: Surface
+    locks: ["1", "10"]
+    type: abuse
+    fixtures: [dogfood]
+    steps:
+      - attempt dogfood action collect_fx_payout
+    expect:
+      status: reject
+      error_code: senda_settles_forbidden
+    pass_criteria: Reject adaptor-as-payer via dogfood.
+
+  - id: DF-05
+    title: Cold-start uses dogfood when no named partner
+    domain: Surface
+    locks: ["1", "4"]
+    type: edge
+    fixtures: [dogfood]
+    steps:
+      - assert no named design partner required
+      - run DF-01 loop
+    expect:
+      status: allow
+    pass_criteria: Build/test loop unblocked without live MTO (#4).
+
+  # ── Lock #2 Links ─────────────────────────────────────────────
+  - id: LK-01
+    title: Open Link validate without payer binding
+    domain: Link
+    locks: ["2"]
+    type: happy
+    fixtures: [links, obligations]
+    steps:
+      - connect.validate link_code=HDA-ADA-001 obligation_id=obl_001 payer_hint=null
+    expect:
+      status: allow
+    pass_criteria: Validate succeeds for open student+school Link.
+
+  - id: LK-02
+    title: Two payers can use same open Link
+    domain: Link
+    locks: ["2"]
+    type: happy
+    fixtures: [links, obligations]
+    steps:
+      - connect.validate as payer_A on link_001
+      - connect.validate as payer_B on link_001
+    expect:
+      status: allow
+      payer_bound: false
+    pass_criteria: Not payer-bound day one.
+
+  - id: LK-03
+    title: Confirm verifies ref+amount+currency
+    domain: Confirmation
+    locks: ["2", "10"]
+    type: happy
+    fixtures: [links, obligations, partners.mukuru_sandbox]
+    steps:
+      - instruct then confirm with exact match
+    expect:
+      status: proven
+    pass_criteria: Verification on confirm required and passes.
+
+  - id: LK-04
+    title: Wrong obligation for Link rejected
+    domain: Obligation
+    locks: ["2"]
+    type: edge
+    fixtures: [links, obligations]
+    steps:
+      - validate link_001 with obligation belonging to other beneficiary
+    expect:
+      status: reject
+      error_code: obligation_link_mismatch
+    pass_criteria: Obligation must belong to Link/beneficiary.
+
+  - id: LK-05
+    title: Unknown link_code rejected
+    domain: Link
+    locks: ["2"]
+    type: edge
+    fixtures: [links]
+    steps:
+      - validate link_code=UNKNOWN
+    expect:
+      status: reject
+      error_code: link_not_found
+    pass_criteria: Link must resolve.
+
+  - id: LK-06
+    title: Confirm without Instruction rejected
+    domain: Confirmation
+    locks: ["2"]
+    type: abuse
+    fixtures: [links]
+    steps:
+      - confirm attempt_id missing or never instructed
+    expect:
+      status: reject
+      error_code: attempt_not_instructed
+    pass_criteria: No confirm/proof without instruct→ref.
+
+  - id: LK-07
+    title: Confirm wrong amount → needs_reconcile
+    domain: Confirmation
+    locks: ["2", disputes]
+    type: edge
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - instruct amount=850
+      - confirm amount=800
+    expect:
+      status: needs_reconcile
+    pass_criteria: Exact amount match MVP fails → recon.
+
+  - id: LK-08
+    title: Confirm wrong currency → needs_reconcile
+    domain: Confirmation
+    locks: ["2", disputes]
+    type: edge
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - instruct currency=USD
+      - confirm currency=ZiG
+    expect:
+      status: needs_reconcile
+    pass_criteria: Currency mismatch → recon.
+
+  - id: LK-09
+    title: Confirm wrong customer_reference → needs_reconcile
+    domain: Confirmation
+    locks: ["2", disputes]
+    type: edge
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - instruct
+      - confirm with altered customer_reference
+    expect:
+      status: needs_reconcile
+    pass_criteria: Ref check fails → recon.
+
+  - id: LK-10
+    title: Payer-bound Links not required day one
+    domain: Link
+    locks: ["2"]
+    type: policy
+    fixtures: [links]
+    steps:
+      - design review of Link model
+    expect:
+      status: policy_ok
+      binding: open_student_school
+    pass_criteria: Lock #2 open first; bind later.
+
+  # ── Lock #3 Pricing ───────────────────────────────────────────
+  - id: PR-01
+    title: No Connect fee billing in MVP
+    domain: Policy
+    locks: ["3"]
+    type: policy
+    fixtures: []
+    steps:
+      - attempt to configure Connect fee charge
+    expect:
+      status: deferred
+    pass_criteria: Pricing deferred; no billing product.
+
+  - id: PR-02
+    title: Usage instrumentation without charging
+    domain: Policy
+    locks: ["3"]
+    type: happy
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - emit usage events for validate/instruct/confirm
+    expect:
+      status: policy_ok
+      billing_enabled: false
+    pass_criteria: Instrument usage only.
+
+  - id: PR-03
+    title: School Link pricing deferred
+    domain: Policy
+    locks: ["3"]
+    type: edge
+    fixtures: []
+    steps:
+      - attempt Biller invoice for Links
+    expect:
+      status: deferred
+    pass_criteria: No school pricing product in MVP.
+
+  # ── Lock #4 Outreach ──────────────────────────────────────────
+  - id: DP-01
+    title: Build not gated on named partner
+    domain: Policy
+    locks: ["4"]
+    type: policy
+    fixtures: []
+    steps:
+      - proceed M1–M3 without named MTO
+    expect:
+      status: allow
+    pass_criteria: Outreach parallel; none named required.
+
+  - id: DP-02
+    title: Sandbox/dogfood without live Mukuru
+    domain: Surface
+    locks: ["4", "1"]
+    type: happy
+    fixtures: [dogfood]
+    steps:
+      - run DF-01
+    expect:
+      status: allow
+    pass_criteria: Cold-start works.
+
+  - id: DP-03
+    title: Outreach tracked separately from locks
+    domain: Policy
+    locks: ["4"]
+    type: ops
+    fixtures: []
+    steps:
+      - maintain shortlist Mukuru/Remitly/WR/Vybe-class
+    expect:
+      status: policy_ok
+    pass_criteria: Outreach ops does not reopen #1–#10.
+
+  # ── Lock #5 + Wedge corridor ──────────────────────────────────
+  - id: CR-01
+    title: ZW institution live KYB allowed
+    domain: Institution
+    locks: ["5", wedge]
+    type: happy
+    fixtures: [institution]
+    steps:
+      - kyb.verify country=ZW
+      - enable live_connect
+    expect:
+      status: allow
+    pass_criteria: ZW pilot path open.
+
+  - id: CR-02
+    title: Nigeria live KYB/instruct blocked
+    domain: Institution
+    locks: ["5"]
+    type: edge
+    fixtures: []
+    steps:
+      - create institution country=NG
+      - attempt live KYB / live instruct
+    expect:
+      status: reject
+      error_code: corridor_not_live
+    pass_criteria: NG enums-only; no live pilot.
+
+  - id: CR-03
+    title: Non-ZW live instruct blocked
+    domain: Institution
+    locks: ["5"]
+    type: edge
+    fixtures: []
+    steps:
+      - live instruct for country!=ZW
+    expect:
+      status: reject
+    pass_criteria: Live pilot ZW only.
+
+  - id: CR-04
+    title: Medical/funeral/utilities not first wedge
+    domain: Policy
+    locks: [wedge]
+    type: policy
+    fixtures: []
+    steps:
+      - propose first vertical medical or funeral or utilities
+    expect:
+      status: reject
+    pass_criteria: UK→ZW private school fees first.
+
+  - id: CR-05
+    title: USD Obligation for UK→ZW
+    domain: Obligation
+    locks: ["5", "10", wedge]
+    type: happy
+    fixtures: [obligations]
+    steps:
+      - create/validate obligation currency=USD
+    expect:
+      status: allow
+    pass_criteria: USD wedge default.
+
+  - id: CR-06
+    title: ZiG Obligation flagged not default
+    domain: Obligation
+    locks: ["10", wedge]
+    type: edge
+    fixtures: []
+    steps:
+      - create obligation currency=ZiG
+    expect:
+      status: reject
+      note: allow only if named pilot forces later enum
+    pass_criteria: Prefer USD; do not silently default ZiG.
+
+  # ── Locks #6–#8 Docs ──────────────────────────────────────────
+  - id: DOC-01
+    title: Canonical docs under docs/senda-4.0/
+    domain: Docs
+    locks: ["6-8"]
+    type: happy
+    fixtures: []
+    steps:
+      - assert path exists docs/senda-4.0/product/how-it-works.md
+      - assert lock-brief and work-plan present
+    expect:
+      status: docs_ok
+    pass_criteria: Pack on main under locked path.
+
+  - id: DOC-02
+    title: Legacy stubs redirect into pack
+    domain: Docs
+    locks: ["6-8"]
+    type: happy
+    fixtures: []
+    steps:
+      - check docs/senda-4-work-plan.md stub if present
+      - check docs/project-context.md stub if present
+    expect:
+      status: docs_ok
+    pass_criteria: Stubs point at docs/senda-4.0/.
+
+  - id: DOC-03
+    title: Alternate docs root rejected
+    domain: Docs
+    locks: ["6-8"]
+    type: policy
+    fixtures: []
+    steps:
+      - propose relocate pack to docs/product/
+    expect:
+      status: reject
+    pass_criteria: Path lock held.
+
+  - id: DOC-04
+    title: Test pack lives under docs/senda-4.0/testing/
+    domain: Docs
+    locks: ["6-8"]
+    type: happy
+    fixtures: []
+    steps:
+      - assert docs/senda-4.0/testing/README.md exists
+    expect:
+      status: docs_ok
+    pass_criteria: Testing pack follows path lock.
+
+  # ── Lock #9 Stack ─────────────────────────────────────────────
+  - id: ST-01
+    title: Stack lock text Next+TS+Postgres
+    domain: Policy
+    locks: ["9"]
+    type: policy
+    fixtures: []
+    steps:
+      - read lock-brief #9 and how-it-works header
+    expect:
+      status: policy_ok
+      stack: [nextjs_app_router, typescript, postgres]
+    pass_criteria: Locked stack text present and unchanged in meaning.
+
+  - id: ST-02
+    title: Connect auth via partner API key
+    domain: Partner
+    locks: ["9"]
+    type: happy
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - call Connect with partner API key
+    expect:
+      status: allow
+    pass_criteria: Partner keys for Connect.
+
+  - id: ST-03
+    title: School/ops auth separate from partner keys
+    domain: Surface
+    locks: ["9"]
+    type: happy
+    fixtures: [auth]
+    steps:
+      - school login to Biller
+      - assert partner API key cannot open Biller session
+    expect:
+      status: allow
+    pass_criteria: Distinct auth models.
+
+  - id: ST-04
+    title: Proof stored in S3-compatible object store
+    domain: Proof
+    locks: ["9"]
+    type: happy
+    fixtures: []
+    steps:
+      - after proven, store proof JSON in object store
+    expect:
+      status: allow
+      storage: s3_compatible
+    pass_criteria: Blobs not Postgres-only.
+
+  - id: ST-05
+    title: Neural net matching day one rejected
+    domain: Policy
+    locks: ["9"]
+    type: abuse
+    fixtures: []
+    steps:
+      - propose NN recon matcher in MVP
+    expect:
+      status: reject
+    pass_criteria: No NN day one.
+
+  - id: ST-06
+    title: ERP connector day one rejected
+    domain: Policy
+    locks: ["9", freshness]
+    type: abuse
+    fixtures: []
+    steps:
+      - propose live ZivoFees/Makronexus pull day one
+    expect:
+      status: reject
+    pass_criteria: No ERP day one; templates + Biller exceptions.
+
+  - id: ST-07
+    title: PSP-core / payout orchestrator rejected
+    domain: Policy
+    locks: ["9", "10"]
+    type: abuse
+    fixtures: []
+    steps:
+      - propose multi-PSP orchestrator as core
+    expect:
+      status: reject
+    pass_criteria: No PSP-core; mto_settles.
+
+  - id: ST-08
+    title: Biller beside school systems
+    domain: Surface
+    locks: ["9"]
+    type: policy
+    fixtures: []
+    steps:
+      - review Biller scope vs school ERP
+    expect:
+      status: policy_ok
+      replaces_school_erp: false
+    pass_criteria: Biller beside, not replace.
+
+  - id: ST-09
+    title: Alternate stack would reopen #9
+    domain: Policy
+    locks: ["9"]
+    type: edge
+    fixtures: []
+    steps:
+      - propose Nest+React split or Django as default
+    expect:
+      status: reject
+    pass_criteria: Do not reopen locked stack without founder decision.
+
+  # ── Lock #10 Settle ───────────────────────────────────────────
+  - id: SD-01
+    title: bank_usd SettleDestination accepted
+    domain: SettleDestination
+    locks: ["10"]
+    type: happy
+    fixtures: [settle_destinations.bank_usd]
+    steps:
+      - kyb.verify bank_usd
+    expect:
+      status: allow
+    pass_criteria: Pilot Connect destination type allowed.
+
+  - id: SD-02
+    title: school-owned ecocash accepted
+    domain: SettleDestination
+    locks: ["10"]
+    type: happy
+    fixtures: [settle_destinations.ecocash]
+    steps:
+      - kyb.verify ecocash ownership=school_merchant
+    expect:
+      status: allow
+    pass_criteria: School-owned EcoCash allowed.
+
+  - id: SD-03
+    title: cash_pickup rejected for Connect
+    domain: SettleDestination
+    locks: ["10"]
+    type: abuse
+    fixtures: [settle_destinations.rejected_examples.cash_pickup]
+    steps:
+      - save SettleDestination type=cash_pickup for Connect
+    expect:
+      status: reject
+      error_code: destination_type_forbidden
+    pass_criteria: Cash out of Connect.
+
+  - id: SD-04
+    title: Relative EcoCash wallet rejected
+    domain: SettleDestination
+    locks: ["10"]
+    type: abuse
+    fixtures: [settle_destinations.rejected_examples.relative_ecocash]
+    steps:
+      - save ecocash ownership=relative_personal
+    expect:
+      status: reject
+      error_code: relative_wallet_forbidden
+    pass_criteria: Relative wallets rejected.
+
+  - id: SD-05
+    title: Paynow merchant as Connect destination rejected
+    domain: SettleDestination
+    locks: ["10"]
+    type: abuse
+    fixtures: [settle_destinations.rejected_examples.paynow_merchant]
+    steps:
+      - instruct MTO to Paynow merchant ID
+    expect:
+      status: reject
+      error_code: destination_type_forbidden
+    pass_criteria: Paynow school-local only.
+
+  - id: SD-06
+    title: ZIPIT school-code as Connect destination rejected
+    domain: SettleDestination
+    locks: ["10"]
+    type: abuse
+    fixtures: [settle_destinations.rejected_examples.zipit_school_code]
+    steps:
+      - instruct MTO to ZIPIT school-code
+    expect:
+      status: reject
+    pass_criteria: ZIPIT school-local only.
+
+  - id: SD-07
+    title: Paynow/ZIPIT documented as school-local OK
+    domain: Policy
+    locks: ["10", scope]
+    type: policy
+    fixtures: []
+    steps:
+      - document local rails for school parents
+    expect:
+      status: policy_ok
+      connect_destination: false
+    pass_criteria: Local rails allowed off Connect.
+
+  - id: SD-08
+    title: Happy path bank_usd validate→ref→confirm→proof
+    domain: Instruction
+    locks: ["10", "2"]
+    type: happy
+    fixtures: [settle_destinations.bank_usd, partners.mukuru_sandbox, links, obligations]
+    steps:
+      - validate
+      - instruct frozen destination=bank_usd + unique customer_reference
+      - partner settles mto_settles
+      - confirm match
+      - fetch proof
+    expect:
+      status: proven
+    pass_criteria: Full #10 model on bank_usd.
+
+  - id: SD-09
+    title: Happy path ecocash validate→ref→confirm→proof
+    domain: Instruction
+    locks: ["10", "2"]
+    type: happy
+    fixtures: [settle_destinations.ecocash, partners.mukuru_sandbox, links, obligations]
+    steps:
+      - validate
+      - instruct frozen destination=ecocash + unique customer_reference
+      - confirm match
+      - fetch proof
+    expect:
+      status: proven
+    pass_criteria: Full #10 model on school ecocash.
+
+  - id: SD-10
+    title: Partner capability mismatch rejects instruct
+    domain: Partner
+    locks: ["10"]
+    type: edge
+    fixtures: [partners.bank_only, settle_destinations.ecocash]
+    steps:
+      - school only has ecocash
+      - partner destination_capabilities=[bank_usd]
+      - instruct
+    expect:
+      status: reject
+      error_code: partner_destination_unsupported
+    pass_criteria: Partner-capability-aware instructions.
+
+  - id: SD-11
+    title: Unverified SettleDestination cannot instruct
+    domain: SettleDestination
+    locks: ["10"]
+    type: edge
+    fixtures: []
+    steps:
+      - destination verified=false
+      - instruct
+    expect:
+      status: reject
+      error_code: destination_unverified
+    pass_criteria: KYB verify before freeze.
+
+  - id: SD-12
+    title: Instruction freezes destination snapshot
+    domain: Instruction
+    locks: ["10"]
+    type: edge
+    fixtures: [settle_destinations.bank_usd]
+    steps:
+      - instruct
+      - change school destination
+      - confirm against frozen snapshot
+    expect:
+      status: proven
+      uses_frozen_snapshot: true
+    pass_criteria: Frozen snapshot wins for recon.
+
+  - id: SD-13
+    title: USD Obligations for UK→ZW wedge
+    domain: Obligation
+    locks: ["10", wedge]
+    type: policy
+    fixtures: [obligations]
+    steps:
+      - assert default currency USD
+    expect:
+      status: policy_ok
+    pass_criteria: USD lock held.
+
+  # ── Freshness ─────────────────────────────────────────────────
+  - id: FR-01
+    title: Fee templates bulk-generate Obligations
+    domain: Obligation
+    locks: [freshness]
+    type: happy
+    fixtures: [fee_template, beneficiaries]
+    steps:
+      - apply tmpl_form3_term1 to Form 3 roster
+    expect:
+      status: allow
+      obligations_created: ">=1"
+    pass_criteria: Templates → bulk Obligations.
+
+  - id: FR-02
+    title: Fetch-at-pay returns current Obligation
+    domain: Obligation
+    locks: [freshness]
+    type: happy
+    fixtures: [obligations]
+    steps:
+      - validate/fetch obligation_id=obl_001 at pay time
+    expect:
+      status: allow
+      freshness_check: true
+    pass_criteria: Fetch-at-pay enforced.
+
+  - id: FR-03
+    title: Daily CSV as ongoing freshness rejected
+    domain: Policy
+    locks: [freshness]
+    type: policy
+    fixtures: []
+    steps:
+      - propose daily 600-row CSV edits as process
+    expect:
+      status: reject
+    pass_criteria: CSV = onboarding only.
+
+  - id: FR-04
+    title: Stale Obligation blocked or flagged
+    domain: Obligation
+    locks: [freshness]
+    type: edge
+    fixtures: [obligations]
+    steps:
+      - validate/instruct obl_stale
+    expect:
+      status: reject
+      error_code: obligation_stale
+    pass_criteria: Stale flag enforced.
+
+  - id: FR-05
+    title: No open Obligation → no instructions
+    domain: Instruction
+    locks: [freshness, "10"]
+    type: edge
+    fixtures: [links]
+    steps:
+      - instruct with no open obligation
+    expect:
+      status: reject
+      error_code: obligation_required
+    pass_criteria: Obligation-required Connect.
+
+  - id: FR-06
+    title: Biller per-student exception without full CSV
+    domain: Obligation
+    locks: [freshness]
+    type: happy
+    fixtures: [fee_template]
+    steps:
+      - override amount for one student in Biller
+    expect:
+      status: allow
+    pass_criteria: Exceptions without ongoing CSV.
+
+  - id: FR-07
+    title: Proven payment updates Obligation ledger
+    domain: Obligation
+    locks: [freshness, "10"]
+    type: happy
+    fixtures: [obligations]
+    steps:
+      - complete SD-08
+      - assert obligation status updated
+    expect:
+      status: allow
+    pass_criteria: Auto ledger from proven pays.
+
+  - id: FR-08
+    title: Unmaintained school removed from live Connect
+    domain: Institution
+    locks: [freshness, "5"]
+    type: ops
+    fixtures: [institution]
+    steps:
+      - weekly hygiene finds stale roster
+      - disable live_connect
+    expect:
+      status: reject
+      live_connect: false
+    pass_criteria: Ops hygiene gate.
+
+  - id: FR-09
+    title: New term without Obligations rejects pay
+    domain: Obligation
+    locks: [freshness]
+    type: edge
+    fixtures: [links]
+    steps:
+      - validate Term N+1 with no plan/obligations
+    expect:
+      status: reject
+    pass_criteria: New term needs new Obligations.
+
+  # ── Local payers deferred ─────────────────────────────────────
+  - id: LP-01
+    title: Local ZW payer product deferred
+    domain: Policy
+    locks: [scope]
+    type: policy
+    fixtures: []
+    steps:
+      - propose full local payer Connect depth in MVP
+    expect:
+      status: deferred
+    pass_criteria: Abroad UK→ZW first.
+
+  - id: LP-02
+    title: Manual external payment mark allowed
+    domain: Obligation
+    locks: [scope, freshness]
+    type: edge
+    fixtures: [obligations]
+    steps:
+      - school/ops mark external local payment on Obligation
+    expect:
+      status: allow
+    pass_criteria: Manual write OK; not full local product.
+
+  - id: LP-03
+    title: Term refresh acceptable without daily local logging
+    domain: Policy
+    locks: [scope, freshness]
+    type: policy
+    fixtures: []
+    steps:
+      - review MVP freshness SLA
+    expect:
+      status: policy_ok
+    pass_criteria: Term refresh acceptable per how-it-works.
+
+  # ── Recon / disputes ──────────────────────────────────────────
+  - id: RC-01
+    title: Happy path proven
+    domain: Proof
+    locks: ["10", disputes]
+    type: happy
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - instruct + confirm exact match
+    expect:
+      status: proven
+    pass_criteria: Proof issued.
+
+  - id: RC-02
+    title: Amount mismatch → needs_reconcile
+    domain: Confirmation
+    locks: [disputes]
+    type: dispute
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - confirm wrong amount
+    expect:
+      status: needs_reconcile
+    pass_criteria: Ops queue.
+
+  - id: RC-03
+    title: Currency mismatch → needs_reconcile
+    domain: Confirmation
+    locks: [disputes]
+    type: dispute
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - confirm wrong currency
+    expect:
+      status: needs_reconcile
+    pass_criteria: Ops queue.
+
+  - id: RC-04
+    title: Ref mismatch → needs_reconcile
+    domain: Confirmation
+    locks: [disputes]
+    type: dispute
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - confirm wrong ref
+    expect:
+      status: needs_reconcile
+    pass_criteria: Ops queue.
+
+  - id: RC-05
+    title: MTO fails to deliver (no confirm)
+    domain: Attempt
+    locks: [disputes, "10"]
+    type: dispute
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - instruct
+      - no settle and no confirm past settle window
+    expect:
+      status: stuck_instructed
+      proven: false
+    pass_criteria: Never auto-proven; ops visibility / cancel path.
+
+  - id: RC-06
+    title: False confirm by partner
+    domain: Confirmation
+    locks: [disputes]
+    type: dispute
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - partner posts confirm without real credit
+      - school later reports unpaid
+    expect:
+      status: needs_reconcile
+    pass_criteria: False-confirm recoverable via dispute → needs_reconcile.
+
+  - id: RC-07
+    title: School unpaid dispute after confirm
+    domain: Confirmation
+    locks: [disputes]
+    type: dispute
+    fixtures: []
+    steps:
+      - school marks unpaid / opens dispute on Attempt
+    expect:
+      status: needs_reconcile
+    pass_criteria: School unpaid dispute path exists.
+
+  - id: RC-08
+    title: Wrong destination settle → needs_reconcile
+    domain: Confirmation
+    locks: [disputes, "10"]
+    type: dispute
+    fixtures: []
+    steps:
+      - funds land on wrong account/wallet
+      - school or ops report
+    expect:
+      status: needs_reconcile
+    pass_criteria: Wrong destination enters recon.
+
+  - id: RC-09
+    title: Duplicate confirm idempotent
+    domain: Confirmation
+    locks: [disputes]
+    type: edge
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - confirm twice with same partner_payment_id
+    expect:
+      status: idempotent
+    pass_criteria: No double-proof side effects.
+
+  - id: RC-10
+    title: Partial amount → needs_reconcile (exact match MVP)
+    domain: Confirmation
+    locks: [disputes]
+    type: edge
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - confirm partial amount
+    expect:
+      status: needs_reconcile
+    pass_criteria: Exact match MVP.
+
+  - id: RC-11
+    title: Idempotent instruct returns same attempt/ref
+    domain: Instruction
+    locks: ["10"]
+    type: edge
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - instruct twice same idempotency_key
+    expect:
+      status: idempotent
+    pass_criteria: Same attempt_id and customer_reference.
+
+  - id: RC-12
+    title: Idempotency key conflict on different amount
+    domain: Instruction
+    locks: ["10"]
+    type: abuse
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - instruct key=K amount=850
+      - instruct key=K amount=900
+    expect:
+      status: reject
+      error_code: idempotency_conflict
+    pass_criteria: Conflict rejected.
+
+  - id: RC-13
+    title: Proof available to partner and Biller
+    domain: Proof
+    locks: ["10", "9"]
+    type: happy
+    fixtures: []
+    steps:
+      - after proven, partner fetch + school Biller download
+    expect:
+      status: allow
+    pass_criteria: Shared proof artifact.
+
+  - id: RC-14
+    title: Proof not issued while needs_reconcile
+    domain: Proof
+    locks: [disputes]
+    type: edge
+    fixtures: []
+    steps:
+      - request proof on needs_reconcile Attempt
+    expect:
+      status: reject
+      error_code: not_proven
+    pass_criteria: Proof only when proven.
+
+  # ── Partner capability ────────────────────────────────────────
+  - id: PC-01
+    title: Bank-only partner vs ecocash-only school
+    domain: Partner
+    locks: ["10"]
+    type: partner
+    fixtures: [partners.bank_only, settle_destinations.ecocash]
+    steps:
+      - instruct
+    expect:
+      status: reject
+      error_code: partner_destination_unsupported
+    pass_criteria: Clear capability error.
+
+  - id: PC-02
+    title: Partner with both capabilities + bank school
+    domain: Partner
+    locks: ["10"]
+    type: partner
+    fixtures: [partners.mukuru_sandbox, settle_destinations.bank_usd]
+    steps:
+      - instruct
+    expect:
+      status: allow
+    pass_criteria: Instruct allowed.
+
+  - id: PC-03
+    title: Partner with no ZW payout
+    domain: Partner
+    locks: ["5", "10"]
+    type: partner
+    fixtures: [partners.no_zw]
+    steps:
+      - instruct
+    expect:
+      status: reject
+      error_code: partner_corridor_unsupported
+    pass_criteria: Corridor capability enforced.
+
+  - id: PC-04
+    title: Dual recon when bank statement shows partner ref
+    domain: Confirmation
+    locks: ["10"]
+    type: partner
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - confirm payload carries Senda customer_reference
+      - school statement shows partner transfer id
+    expect:
+      status: policy_ok
+      authoritative: partner_confirm_payload
+    pass_criteria: Confirm payload authoritative; document statement mismatch.
+
+  - id: PC-05
+    title: Partner cannot pass custom bursar string
+    domain: Instruction
+    locks: ["10"]
+    type: partner
+    fixtures: [partners.mukuru_sandbox]
+    steps:
+      - instruct still issues Senda customer_reference
+      - confirm uses that ref in API payload
+    expect:
+      status: allow
+    pass_criteria: Senda ref in confirm contract even if absent on bank line.
+
+  - id: PC-06
+    title: PayAngel-class without ZW deferred
+    domain: Partner
+    locks: ["4", "5"]
+    type: partner
+    fixtures: []
+    steps:
+      - treat as non-pilot demand
+    expect:
+      status: deferred
+    pass_criteria: Not a live pilot partner without ZW.
+
+  # ── Abuse extras ──────────────────────────────────────────────
+  - id: AB-01
+    title: Stolen link_code still needs Obligation + confirm verify
+    domain: Link
+    locks: ["2"]
+    type: abuse
+    fixtures: [links]
+    steps:
+      - validate with stolen code but invalid/missing obligation
+    expect:
+      status: reject
+    pass_criteria: Link alone insufficient without Obligation; confirm still verifies.
+
+  - id: AB-02
+    title: Double-pay in-flight handling
+    domain: Attempt
+    locks: ["10", disputes]
+    type: abuse
+    fixtures: [obligations]
+    steps:
+      - instruct attempt A
+      - instruct attempt B same obligation while A open
+    expect:
+      status: reject
+      note: or both tracked without silent double proven
+      proven_count_max: 1
+    pass_criteria: No silent double proven for one Obligation.
+
+  - id: AB-03
+    title: Client-side destination tamper rejected
+    domain: Instruction
+    locks: ["10"]
+    type: abuse
+    fixtures: []
+    steps:
+      - confirm with altered destination vs server snapshot
+    expect:
+      status: needs_reconcile
+    pass_criteria: Server frozen snapshot wins.
+
+  - id: AB-04
+    title: Staff personal EcoCash rejected at KYB
+    domain: SettleDestination
+    locks: ["10"]
+    type: abuse
+    fixtures: []
+    steps:
+      - submit ecocash ownership=staff_personal
+    expect:
+      status: reject
+    pass_criteria: Ownership proof required for school wallet.
+
+  - id: AB-05
+    title: Partner cannot confirm another partner Attempt
+    domain: Confirmation
+    locks: ["9", "10"]
+    type: abuse
+    fixtures: [partners.mukuru_sandbox, partners.bank_only]
+    steps:
+      - partner_bank_only confirms mukuru attempt
+    expect:
+      status: reject
+      error_code: partner_attempt_mismatch
+    pass_criteria: partner_id must own Attempt.
+
+  # ── Ops / KYB ─────────────────────────────────────────────────
+  - id: OP-01
+    title: Incomplete KYB cannot go live
+    domain: Institution
+    locks: ["5", "10"]
+    type: ops
+    fixtures: []
+    steps:
+      - kyb_status=incomplete
+      - enable live_connect
+    expect:
+      status: reject
+    pass_criteria: KYB gate.
+
+  - id: OP-02
+    title: Bank account title must match legal title
+    domain: SettleDestination
+    locks: ["10"]
+    type: ops
+    fixtures: []
+    steps:
+      - verify bank with marketing name ≠ account title
+    expect:
+      status: reject
+    pass_criteria: Exact account title captured.
+
+  - id: OP-03
+    title: CSV onboarding imports beneficiaries
+    domain: Beneficiary
+    locks: [freshness]
+    type: ops
+    fixtures: []
+    steps:
+      - import CSV ≥20 students → Links
+    expect:
+      status: allow
+    pass_criteria: Onboarding CSV path works.
+
+  - id: OP-04
+    title: Fee plan assign after CSV generates Obligations
+    domain: Obligation
+    locks: [freshness]
+    type: ops
+    fixtures: [fee_template]
+    steps:
+      - assign template to imported roster
+    expect:
+      status: allow
+    pass_criteria: Cold-start Obligations exist.
+
+  - id: OP-05
+    title: Settle destination change requires re-verify
+    domain: SettleDestination
+    locks: ["10"]
+    type: ops
+    fixtures: [settle_destinations.bank_usd]
+    steps:
+      - change account number
+      - attempt instruct before re-verify
+    expect:
+      status: reject
+    pass_criteria: Re-verify before new instructs.
