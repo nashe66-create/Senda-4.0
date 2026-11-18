@@ -29,6 +29,10 @@ Canonical documentation for the Senda 4.0 purpose-settlement wedge lives under `
 - [Wedge comparison](research/wedge-comparison.md)
 - [Lock brief](research/lock-brief.md) — synthesis; **#9 + #10 LOCKED**
 
+### Testing (lock scenario pack)
+- [Testing pack](testing/README.md) — scenario catalog, YAML cases, test agents, coverage map
+- Run: `python3 docs/senda-4.0/testing/scripts/validate_pack.py`
+
 ### Legacy path stubs
 Older paths redirect here so links do not break:
 - `docs/senda-4-work-plan.md` → [work-plan.md](work-plan.md)

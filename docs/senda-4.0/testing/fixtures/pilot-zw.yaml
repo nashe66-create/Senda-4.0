@@ -1,0 +1,116 @@
+# Shared fixtures for lock scenario agents (UK → ZW school fees wedge)
+version: 1
+corridor: UK_ZW
+currency: USD
+
+institution:
+  id: inst_heritage_demo
+  name: Heritage Demo Academy
+  country: ZW
+  kyb_status: verified
+  live_connect: true
+
+settle_destinations:
+  bank_usd:
+    id: dest_bank_1
+    type: bank_usd
+    verified: true
+    account_title: Heritage Demo Academy FCA
+    bank: Steward Bank
+    currency: USD
+  ecocash:
+    id: dest_eco_1
+    type: ecocash
+    verified: true
+    ownership: school_merchant
+    msisdn: "+263771000001"
+    currency: USD
+  rejected_examples:
+    cash_pickup:
+      type: cash_pickup
+    relative_ecocash:
+      type: ecocash
+      ownership: relative_personal
+      msisdn: "+263771999999"
+    paynow_merchant:
+      type: paynow
+      merchant_id: "PN-DEMO"
+    zipit_school_code:
+      type: zipit
+      school_code: "HER123"
+
+beneficiaries:
+  - id: ben_student_001
+    student_ref: HD-001
+    name: Ada Demo
+    grade: Form 3
+  - id: ben_student_002
+    student_ref: HD-002
+    name: Ben Demo
+    grade: Form 3
+
+links:
+  - id: link_001
+    link_code: HDA-ADA-001
+    beneficiary_id: ben_student_001
+    institution_id: inst_heritage_demo
+    binding: open_student_school
+  - id: link_002
+    link_code: HDA-BEN-002
+    beneficiary_id: ben_student_002
+    institution_id: inst_heritage_demo
+    binding: open_student_school
+
+fee_template:
+  id: tmpl_form3_term1
+  grade: Form 3
+  term: 2026-T1
+  amount: 850.00
+  currency: USD
+
+obligations:
+  - id: obl_001
+    beneficiary_id: ben_student_001
+    template_id: tmpl_form3_term1
+    amount: 850.00
+    currency: USD
+    status: open
+    stale: false
+  - id: obl_002
+    beneficiary_id: ben_student_002
+    template_id: tmpl_form3_term1
+    amount: 850.00
+    currency: USD
+    status: open
+    stale: false
+  - id: obl_stale
+    beneficiary_id: ben_student_001
+    template_id: tmpl_form3_term1
+    amount: 850.00
+    currency: USD
+    status: open
+    stale: true
+
+partners:
+  mukuru_sandbox:
+    partner_id: partner_mukuru_sbx
+    api_key_hint: sandbox
+    corridors: [ZW]
+    destination_capabilities: [bank_usd, ecocash]
+  bank_only:
+    partner_id: partner_bank_only
+    corridors: [ZW]
+    destination_capabilities: [bank_usd]
+  no_zw:
+    partner_id: partner_no_zw
+    corridors: []
+    destination_capabilities: []
+
+dogfood:
+  surface: dogfood_ui
+  requires_live_mto: false
+  loop: [validate, instruct, confirm, proof]
+
+auth:
+  partner: api_key
+  school_ops: session_or_magic_link
