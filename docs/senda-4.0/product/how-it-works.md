@@ -108,6 +108,8 @@ Senda target: grade/class fee templates → bulk Obligation generate; Biller exc
 
 ## Lessons from Bharat Connect / BBPS (working note)
 
+Full study: [research/bbps-india.md](../research/bbps-india.md).
+
 Steal: fetch-then-pay; student unique id; one biller onboard; demand from ledger or file; bind fetch→pay refs; biller-level partial-pay rules; directory alone ≠ volume.
 
 Don’t copy: settlement guarantee / clearing-house role; domestic UPI as our wedge.
