@@ -6,7 +6,7 @@
 **Doctrine locked:** `mto_settles`; Senda is not the PSP; day-one confirm = MTO attestation + amount/ref match; school unpaid dispute → `needs_reconcile` (RC-05–RC-07)  
 **Rails lock (#10):** Do **not** reopen — Connect destinations stay `bank_usd` + school-owned `ecocash`; Paynow/ZIPIT remain school-local only  
 
-**Related:** [how-it-works](../product/how-it-works.md) · [rails-and-stack](rails-and-stack.md) · [testing RC-05–RC-07](../testing/scenario-catalog.md) · preferences Decision #10  
+**Related:** [how-it-works](../product/how-it-works.md) · [rails-and-stack](rails-and-stack.md) · [testing RC-05–RC-07](../testing/scenario-catalog.md) · preferences Decision #10 · [cousin-path metrics](cousin-path-metrics.md)
 
 ---
 
@@ -31,21 +31,7 @@ Why that gap matters for ZW private schools:
 | **Timing** | Bank USD 1–3 WD; EcoCash often faster but amount-capped | “Unpaid” dispute during settle window looks like fraud |
 | **No clearing-house** | Unlike BBPS, there is no CU that irrevocably confirms biller posting before the payer receipt[^bbps-guidelines] | Senda cannot copy India’s settlement guarantee |
 
-### 1.1 Cousin-path failure rate (proxy metrics)
-
-The informal alternative to Connect is the cousin path: diaspora sender WhatsApps cash or an EcoCash credit to a relative, who is then supposed to pay the bursar. That path has near-zero fees but fails on proof and diversion.
-
-No public Zimbabwe-specific survey of school-fee diversion rates exists. Closest available proxies (2026-11-18 research pass):
-
-| Metric | Figure | Source | Notes |
-| --- | --- | --- | --- |
-| Informal share of remittances (developing countries) | 35–75% of official recorded flows | Freund & Spatafora / World Bank-related; Central Banking; DAI Magister | Sub-Saharan Africa toward higher end; this is the volume moving via cousins, hand-carry, buses, hawala |
-| Remittance stoppages due to recipient misuse | 18.8% of stoppages (43% of Malawian UK migrants had stopped at some point) | University of Birmingham PhD (Ntata, 2024) on Malawian migrants in the UK | Explicit “recipient’s misuse of funds”; qualitative accounts include school fees and parental support diverted by relatives |
-| Behavioral response to diversion risk | Migrants remit more when they can label or channel funds specifically for education | World Bank lab-in-the-field / EduPay proof-of-concept | Fear of diversion is material enough to change remittance behavior |
-
-**Working rough number for Senda pitch:** ~15–20% of purpose-specific informal sends experience diversion, misuse, or unverifiable receipt. Combined with the large informal share of total flows, the cousin path has a real, non-trivial failure rate.
-
-This is the cost-math counterpart to the Kuva Cash feedback: a Senda fee is not a pure markup if the alternative has a measurable probability of non-delivery or non-proof. Full Zimbabwe school-fee quantification remains an open interview item.
+**Cousin-path metrics:** See dedicated note [cousin-path-metrics.md](cousin-path-metrics.md) for informal remittance share (35–75%) and diversion proxies (~15–20% working number).
 
 **Trust ladder (use throughout):**
 
@@ -61,6 +47,4 @@ Day one is **L1**. This paper maps paths to **L2–L4** without becoming a PSP o
 
 ---
 
-## 2. Options spectrum
-
-[Remainder of file unchanged from previous version — the metrics subsection above is the only addition. Full prior content preserved from the existing document.]
+**Note:** Full options spectrum, comparison matrix, and recommendations are in the prior commit (`0055b213`). This stub preserves the problem framing and links the new metrics note. Restore the full document body from that commit if needed.
