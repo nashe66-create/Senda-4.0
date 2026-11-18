@@ -107,7 +107,7 @@ EcoCash publishes a **Schools** checklist: certified IDs of ≥2 executives, let
 | Friction | Why it bites | Mitigation for MVP |
 | --- | --- | --- |
 | Who owns the settle account? | Trust / SDC / church / proprietor / “school fees” sub-account ambiguity | Require named entity match + mandate; one primary SettleDestination first |
-| Multi-destination | USD Nostro + ZiG + EcoCash till | Pilot: **one** destination (prefer USD bank); ZiG/EcoCash later (#10) |
+| Multi-destination | USD Nostro + ZiG + EcoCash till | Pilot Connect types (#10 **LOCKED**): `bank_usd` + school-owned `ecocash`; prefer one primary per school; ZiG later |
 | Ref hygiene | Schools already ask “student name” or student number on transfers | Senda `customer_reference` must be teachable to bursar + partner; show on Biller payment list |
 | Fear of sharing bank details | Fraud / wrong-account history | KYB + verified destination + freeze on Instruction; proof back to school |
 | Ops capacity | Small bursary, WhatsApp-driven | Templates + bulk; ops helps first two terms |
@@ -124,7 +124,7 @@ Use as a **scorecard**, not a vanity list. Prefer a Harare (and optionally Bulaw
 | # | Criterion | Why |
 | --- | --- | --- |
 | 1 | **Private** registered school (not MoE public day-one) | Clearer settle ownership; Makronexus public path is different politics |
-| 2 | **Published or readily shareable USD bank** (or EcoCash merchant if #10 includes it) | Partner `mto_settles` needs a reachable destination |
+| 2 | **Published or readily shareable USD bank** (or school-owned EcoCash — #10 **LOCKED**) | Partner `mto_settles` needs a reachable destination |
 | 3 | **Bursar + head/proprietor** named and responsive within ~2 weeks for KYB pack | Docs don’t move without both |
 | 4 | **Diaspora signal** — Cambridge/independent/boarding, or known UK-parent cohort | Demand exists for Connect |
 | 5 | **Fee structure is templateable** (grade/class ± boarding; exceptions rare) | Proves freshness model |

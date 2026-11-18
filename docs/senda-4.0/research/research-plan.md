@@ -32,7 +32,7 @@ Stack choice depends on: partner API surface (Connect), Biller UX constraints, s
 - What #9 must support in first 90 days vs later (ERP pull, webhooks, PDF proofs)
 
 **Output:** `docs/senda-4.0/research/rails-and-stack.md`  
-**Locks:** #9 stack (**LOCKED**), #10 settle methods (**proposed**)
+**Locks:** #9 stack (**LOCKED**), #10 settle methods (**LOCKED**)
 
 ### D — Wedge comparison
 - Score schools vs medical vs funeral/policies vs utilities on: diaspora pain, fetchable dues, settle clarity, MTO appetite, onboarding cost, regulatory load
@@ -43,7 +43,7 @@ Stack choice depends on: partner API surface (Connect), Biller UX constraints, s
 
 ## Synthesis (after A–D)
 Coordinator merges into `docs/senda-4.0/research/lock-brief.md`: recommended wedge, #9 lock text, #10 lock text, open risks.  
-**Post-synthesis (2026-11-18):** #9 recorded as **LOCKED**; #10 remains **proposed** pending founder lock.
+**Post-synthesis (2026-11-18):** #9 and #10 recorded as **LOCKED** (founder confirmed; partner API outreach is ops sequencing, not a reopen of #10).
 
 ## Method
 Web + public filings/docs; no pretending partner interviews happened. Flag where founder outreach is required.

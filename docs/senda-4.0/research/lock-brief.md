@@ -13,7 +13,7 @@
 | Wedge | First live wedge | **LOCKED** (preferences / corridor) | **UK → ZW private school fees** (not medical / funeral / utilities first) |
 | Freshness | How dues stay current | **Locked** (product prefs) | Grade/class **fee templates → bulk Obligations**; Biller exceptions; **fetch-at-pay**; CSV = onboarding only; no ERP day one |
 | **#9** | Tech stack | **LOCKED** (2026-11-18) | **Next.js (App Router) + TypeScript + Postgres**; partner API keys + school/ops auth; S3-compatible object store for proofs; Biller beside school systems; **no NN / no ERP / no PSP-core day one** |
-| **#10** | ZW settle methods | **Proposed** (pending — preferences) | Research recommends pilot: **`bank_usd` + school-owned `ecocash`**; reject cash/relative wallets for Connect; Paynow/ZIPIT = school-local only |
+| **#10** | ZW settle methods | **LOCKED** (2026-11-18) | Pilot Connect SettleDestination: **`bank_usd` + school-owned `ecocash`**; reject cash/relative wallets for Connect; Paynow/ZIPIT = school-local only; MTOs settle with Senda validate→ref→confirm |
 
 ---
 
@@ -34,34 +34,42 @@ Confidence from research: High (~0.85). See [rails-and-stack.md](rails-and-stack
 
 ---
 
-## #10 — Proposed (not locked)
+## #10 — LOCKED settle methods (2026-11-18)
 
-Research recommendation (do **not** treat as locked until founder confirms):
+**Locked:** Pilot Connect SettleDestination types are **both**:
 
-1. **`bank_usd`** — school nostro/FCA (default preferred for term-size fees)  
+1. **`bank_usd`** — school USD nostro/FCA (or equivalent USD business account); default preferred for term-size fees  
 2. **`ecocash`** — school-owned EcoCash (prefer merchant/institutional wallet)
 
-Out of pilot Connect destinations: cash pickup, personal relative wallets, Paynow merchant IDs, ZIPIT school codes (document as school-local / future enums only).
+**Also locked (policy):**
+
+- **Out of Connect destinations:** cash pickup, personal relative wallets, Paynow merchant IDs, ZIPIT merchant/school codes (school-local / later enums only).  
+- **Currency:** USD Obligations for the UK→ZW wedge.  
+- **Model:** KYB verifies destination belongs to the school → Connect validate Obligation → instruct with frozen destination + unique ref → MTO confirm → proof.  
+- **Instructions must be partner-capability-aware** — do not instruct an MTO to a destination type their ZW payout network cannot hit.
+
+**Founder note (2026-11-18):** MTOs can credit institutional bank/EcoCash **with Senda’s help** (validate / ref / confirm layer). Partner API outreach is **ops sequencing**, not a reason to keep #10 pending.
+
+Confidence from research: Medium-High (~0.75). See [rails-and-stack.md](rails-and-stack.md).
 
 ---
 
-## 90-day build (with #9 locked)
+## 90-day build (with #9 and #10 locked)
 
 Domain + KYB + Links + fee templates/Obligations → instruct/ref → confirm/recon → proof JSON → Connect sandbox → thin Biller → dogfood UI.  
 Later: ERP pull, webhooks, PDF, insurer/utility adapters, `senda_settles`.
 
 ---
 
-## Still need founder outreach (does not block #9)
+## Still need founder outreach (does not block #9 or #10)
 
-1. Mukuru/Remitly/WR: institutional bank + EcoCash merchant payout; custom ref pass-through  
+1. Mukuru/Remitly/WR: institutional bank + EcoCash merchant payout; custom ref pass-through (ops sequencing for first live settle)  
 2. 3–5 bursars: will they run templates + exceptions for diaspora-linked students?  
 3. Named 5–10 pilot schools  
 4. Optional: Vybe-class ZW appetite  
-5. **Lock or edit #10** settle methods
 
 ---
 
-## Ask (remaining)
+## Ask
 
-Reply **lock** (or edit) for: **#10** = bank_usd + ecocash (research proposes; still pending in preferences).
+**Status 2026-11-18:** Wedge, freshness, **#9**, and **#10** are **LOCKED** (founder: MTOs can settle institutional destinations with Senda’s validate→ref→confirm help).

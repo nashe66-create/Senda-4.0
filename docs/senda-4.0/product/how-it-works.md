@@ -2,7 +2,7 @@
 
 **Status:** Working draft from locked plan decisions (2026-11-18).  
 **Stack (#9):** **LOCKED** — Next.js App Router + TypeScript + Postgres; partner API keys + school/ops auth; S3-compatible proofs; Biller beside school systems; no NN / no ERP / no PSP-core day one.  
-**Settle methods (#10):** **Proposed** (pending) — research recommends `bank_usd` + school-owned `ecocash`; not fully locked.  
+**Settle methods (#10):** **LOCKED** — `bank_usd` + school-owned `ecocash`; Paynow/ZIPIT school-local only; cash/relative wallets out of Connect; MTOs settle with Senda validate→ref→confirm.  
 **Corridor:** UK → Zimbabwe private school fees. Local ZW payer flow deferred for MVP.
 
 ## One sentence
@@ -41,12 +41,9 @@ Institution → SettleDestination → Beneficiary → Link → Obligation → At
 7. Port full docs pack into Senda-4.0: yes  
 8. Docs path: `docs/senda-4.0/…`  
 9. **Tech stack LOCKED:** Next.js App Router + TypeScript + Postgres; partner API keys + school/ops auth; S3-compatible object store for proofs; Biller beside school systems; no NN / no ERP / no PSP-core day one  
+10. **ZW settle methods LOCKED:** Pilot Connect SettleDestination types = `bank_usd` (school USD nostro/FCA) + school-owned `ecocash` (prefer merchant/institutional wallet); out of Connect: cash pickup, relative wallets, Paynow merchant IDs, ZIPIT school-codes (school-local / later only); USD Obligations for UK→ZW; model = KYB verifies school destination → Connect validate Obligation → instruct with frozen destination + unique ref → MTO confirm → proof. Partner API outreach is ops sequencing, not a reopen of this lock.  
 - Local payer verification: **deferred** for MVP (recon model can extend later)  
 - No neural net day-one; moat is allowlist + Links + proof  
-
-## Pending
-
-10. ZW settle methods — **proposed** `bank_usd` + school `ecocash` (research recommends lock; preferences: pending)
 
 ## Explicit non-goals (near term)
 

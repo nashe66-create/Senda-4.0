@@ -95,7 +95,7 @@ Derived from: Senda product draft; ClicknShare remitter pitch; Paynow Auth/Pay; 
 - Partial-pay / overpay rules at biller level (BBPS lesson)
 - Stale Obligation flags (term window) so partners don’t sell dead dues
 - Partner-facing attempt history for support
-- Clear settle-instruction fields: bank USD vs EcoCash (whatever #10 locks)
+- Clear settle-instruction fields: bank USD vs EcoCash (#10 **LOCKED**: `bank_usd` + school-owned `ecocash`)
 
 ### 4.3 Explicitly not Connect’s job (near term)
 
@@ -171,7 +171,7 @@ Prioritised outreach list for design-partner discovery (Decision #4: parallel ou
 3. **Purpose app (Vybe-class / PayAngel-class):** would they plug a ZW Connect for schools rather than build school graph themselves?
 4. **Topa/ClicknShare competitive intel (careful):** what schools are live; remitter pipeline; whether their moat is settlement or directory — informs whether Senda is complement or clash.
 5. **2–3 UK diaspora parents who pay ZW private fees:** current path (Mukuru→relative→bursar vs EcoCash vs Topa vs bank); receipt failures; what “proof” means to them.
-6. **1–2 ZW private-school bursars:** how diaspora fees arrive today; reference quality; EcoCash vs USD bank preference (feeds #10).
+6. **1–2 ZW private-school bursars:** how diaspora fees arrive today; reference quality; EcoCash vs USD bank preference (ops for first live settle; #10 already **LOCKED**).
 
 Until these land, **do not treat any named MTO as committed**.
 
