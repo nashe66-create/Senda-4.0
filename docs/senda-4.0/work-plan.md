@@ -6,7 +6,7 @@
 **Corridor correction (2026-11-18):** Founder lock — **first wedge is UK → Zimbabwe**, not UK → Nigeria. Older pivot/spec text that names Nigeria as the first corridor is superseded for this Project; Nigeria is a later expansion only.  
 **Repo home:** [`nashe66-create/Senda-4.0`](https://github.com/nashe66-create/Senda-4.0)  
 **Stack (#9):** **LOCKED** — Next.js App Router + TypeScript + Postgres; partner API keys + school/ops auth; S3-compatible proofs; Biller beside school systems; no NN / no ERP / no PSP-core day one.  
-**Settle (#10):** **Proposed** — `bank_usd` + school `ecocash` (pending founder lock).
+**Settle (#10):** **LOCKED** — `bank_usd` + school-owned `ecocash`; Paynow/ZIPIT school-local only; cash/relative wallets out of Connect; MTOs settle with Senda validate→ref→confirm.
 
 ---
 
@@ -128,7 +128,7 @@ From product-spec §17, stage plan, and pivot-agent follow-through — **updated
 | 7 | Port full docs pack into Senda-4.0? | **Yes** — research + product pack under `docs/senda-4.0/` |
 | 8 | Preferred path layout | **Locked:** `docs/senda-4.0/…` |
 | 9 | Tech stack for Connect/Biller MVP? | **LOCKED:** Next.js App Router + TypeScript + Postgres; partner API keys + school/ops auth; S3-compatible proofs; Biller beside school systems; no NN / no ERP / no PSP-core day one |
-| 10 | Settle methods for ZW pilot (bank transfer, EcoCash/mobile money till, both)? | **Proposed:** `bank_usd` + school `ecocash` — confirm before SettleDestination implementation |
+| 10 | Settle methods for ZW pilot (bank transfer, EcoCash/mobile money till, both)? | **LOCKED:** `bank_usd` + school-owned `ecocash`; Paynow/ZIPIT school-local only; cash/relative wallets out of Connect; model = KYB → validate → instruct (frozen dest + ref) → MTO confirm → proof |
 
 **Stage kill criteria** (from stage plan — stop/reframe if true): every MTO insists Senda also moves money *and* that forces full remittance licensing day-one; ZW schools refuse KYB/settle details; proof-without-adaptor-as-payer rejected by every design partner.
 
@@ -153,7 +153,7 @@ Explicitly **not** this Project’s near-term build (pivot + product-spec non-go
 
 ## 7. Approval
 
-Reply with: **approve / approve with edits / hold**, plus answers to §5 (at least #1, #4, #6–#8, #10). After approval, coordinator should create tracked tasks starting with the recommended first three below.
+**§5 #1–#10 are locked** (including #9 stack and #10 settle). Reply only if reopening a decision. Coordinator should create tracked tasks starting with the recommended first three below.
 
 **Recommended first 3 tracked tasks**
 

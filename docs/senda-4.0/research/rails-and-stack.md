@@ -4,7 +4,7 @@
 **Corridor:** UK → Zimbabwe private school fees.  
 **Doctrine context:** Partners move money (`mto_settles`); Senda owns Links, refs, validation, recon, proof. Biller sits **beside** school finance tools. No neural net day one. Dogfood UI = yes (minimal).
 
-**Locks this doc informs:** Decision **#9** (tech stack) — **LOCKED** in preferences + lock-brief; Decision **#10** (ZW settle methods) — **proposed** (pending).
+**Locks this doc informs:** Decision **#9** (tech stack) — **LOCKED**; Decision **#10** (ZW settle methods) — **LOCKED** (2026-11-18).
 
 ---
 
@@ -159,20 +159,23 @@ Aligned to work-plan M1–M6 and product-how-it-works. **Must** = needed to lock
 
 **Confidence: High (0.85).** Best score for one small team shipping Connect + Biller + dogfood on a recon-heavy relational domain; matches the already-proposed default in preferences. Residual risk is founder preference for Python/Rails — product fit still lands on a Postgres monolith either way; Next+TS wins mainly on single-runtime speed and partner-facing TypeScript contracts.
 
-### #10 — ZW settle methods — **PROPOSED** (pending founder lock)
+### #10 — ZW settle methods — **LOCKED** (2026-11-18)
 
-**Research recommendation:** Lock pilot SettleDestination types to **both**:
+**Locked:** Pilot Connect SettleDestination types are **both**:
 
 1. **`bank_usd`** — school nostro/FCA (or equivalent USD business account); capture bank, branch, account title, account number, optional SWIFT. **Default preferred** for term-size fees and MTO bank deposit rails.  
 2. **`ecocash`** — school-owned EcoCash (prefer merchant/institutional wallet); capture MSISDN, wallet currency (USD preferred), ownership proof in KYB.
 
-**Also lock (policy, not destination types):**
+**Also locked (policy, not destination types):**
 
-- **Out of pilot Connect destinations:** cash pickup, personal relative wallets, Paynow merchant IDs, ZIPIT merchant/school codes (keep as **documented school-local rails** / future enums only).  
+- **Out of Connect destinations:** cash pickup, personal relative wallets, Paynow merchant IDs, ZIPIT merchant/school codes (keep as **documented school-local rails** / later enums only).  
 - **Instructions must be partner-capability-aware** — do not instruct an MTO to a destination type their ZW payout network cannot hit.  
-- **Currency:** USD Obligations for UK→ZW wedge; ZiG only if a named pilot school forces it.
+- **Currency:** USD Obligations for UK→ZW wedge; ZiG only if a named pilot school forces it.  
+- **Model:** KYB verifies destination belongs to school → Connect validate Obligation → instruct with frozen destination + unique ref → MTO confirm → proof.
 
-**Confidence: Medium-High (0.75).** School-side acceptance of bank + EcoCash is well evidenced. MTO **institutional** payout (vs P2P) and **custom reference pass-through** are only partially evidenced in public docs — **founder design-partner calls** should confirm before the first live settle, but should not delay locking the two destination types in the data model.
+**Founder note (2026-11-18):** MTOs can credit institutional bank/EcoCash **with Senda’s help** (validate / ref / confirm layer). Partner API outreach is **ops sequencing**, not a reason to keep #10 pending.
+
+**Confidence: Medium-High (0.75).** School-side acceptance of bank + EcoCash is well evidenced. MTO **institutional** payout details and **custom reference pass-through** remain outreach items for first live settle sequencing — they do **not** reopen this lock.
 
 ---
 

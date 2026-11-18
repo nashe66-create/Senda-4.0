@@ -160,7 +160,7 @@ Utilities can match schools on a numeric scorecard and still be the wrong first 
 | --- | --- |
 | Domain | Prioritise Institution → Beneficiary → Link → FeePlan → Obligation → Attempt → Instruction → Confirmation → Proof. Keep enums vertical-agnostic (`institution_type`) but **ship school UX first**. |
 | Freshness | Templates + bulk Obligation generate + fetch-at-pay + stale flags — **not** ERP connectors or daily full-roster CSV in MVP.[^product] |
-| Settle | Model **bank USD + EcoCash till** SettleDestination snapshots; do not build prepaid-token fulfilment as core (#10 still open). |
+| Settle | Model **bank USD + EcoCash till** SettleDestination snapshots; do not build prepaid-token fulfilment as core (#10 **LOCKED**). |
 | Integrations | Day-one: partner API + manual/ops confirm. **Defer:** ZivoFees/Makronexus pull, ZESA aggregators, insurer premium APIs, hospital invoice OCR. |
 | Data / files | Postgres for ledger/recon; object storage for proof artifacts (JSON/PDF). Relational fit > document DB for three-way recon. |
 | Identity | School Biller login + partner API keys; no consumer remittance identity stack. |
@@ -168,7 +168,7 @@ Utilities can match schools on a numeric scorecard and still be the wrong first 
 | What would change #9 if we picked wrong wedge | Utilities-first → aggregator/token APIs + less Biller roster UX. Funeral-first → stricter audit logging, policy CDD fields, insurer SSO. Medical-first → document upload pipeline and dispute states. **Avoid those until schools prove the loop.** |
 
 **#9 lock text (recorded LOCKED):**  
-*Stack = Next.js App Router + TypeScript + Postgres; partner API keys + school/ops auth; S3-compatible proofs; Biller optimised for school fee plans/Obligations/Links; Connect vertical-agnostic; no day-one ERP/utility/insurer connectors / no NN / no PSP-core; settle destinations = partner-payable bank/EcoCash snapshots (#10 proposed).*
+*Stack = Next.js App Router + TypeScript + Postgres; partner API keys + school/ops auth; S3-compatible proofs; Biller optimised for school fee plans/Obligations/Links; Connect vertical-agnostic; no day-one ERP/utility/insurer connectors / no NN / no PSP-core; settle destinations = partner-payable bank/EcoCash snapshots (#10 LOCKED).*
 
 ---
 
@@ -179,7 +179,7 @@ Utilities can match schools on a numeric scorecard and still be the wrong first 
 | U1 | Will Mukuru / Vybe-class / EcoCash-class partners consume a **Connect** Obligation API for schools, or only list billers in their own directory? | Demand (A), API shape |
 | U2 | Pilot school mix: Excel vs ZivoFees/Makronexus; template willingness | Supply (B), freshness |
 | U3 | Share of school fee volume inside UK→ZW remittances (survey purpose ≠ corridor $ share) | Sizing |
-| U4 | Whether MTOs can already settle **with arbitrary customer_reference** to school USD accounts / EcoCash tills | #10 + Connect instructions |
+| U4 | Whether MTOs can already settle **with arbitrary customer_reference** to school USD accounts / EcoCash tills | Connect instructions / first-live-settle ops (does **not** reopen #10) |
 | U5 | IPEC / assurer appetite for a third-party instruction+proof layer (if funeral ever) | Later wedge |
 | U6 | Data residency / PII constraints from ZW schools or UK partners | #9 hosting |
 | U7 | Zympay / Topa / ClicknPay competitive overlap — partner, ignore, or displace? | GTM |
@@ -252,7 +252,7 @@ Utilities can match schools on a numeric scorecard and still be the wrong first 
 
 [^product]: `docs/product-how-it-works.md` — Connect/Biller surfaces; Obligation freshness; school-fee wedge must work before medical/funeral reuse.
 
-[^prefs]: Project `preferences.md` — UK→ZW first corridor; #9 **LOCKED** Next.js+Postgres (+ API keys, S3 proofs, no NN/ERP/PSP-core); #10 pending (`bank_usd` + ecocash proposed); fee plans → Obligations.
+[^prefs]: Project `preferences.md` — UK→ZW first corridor; #9 **LOCKED** Next.js+Postgres (+ API keys, S3 proofs, no NN/ERP/PSP-core); #10 **LOCKED** (`bank_usd` + school-owned ecocash; Paynow/ZIPIT school-local; validate→ref→confirm); fee plans → Obligations.
 
 ---
 
@@ -261,5 +261,5 @@ Utilities can match schools on a numeric scorecard and still be the wrong first 
 - **First wedge:** UK → ZW **private school fees** (confirm).  
 - **Not first:** utilities (score tie, moat miss), funeral (reg + incumbents), medical (dues).  
 - **#9:** **LOCKED** — school-optimised Next.js+Postgres; defer ERP/utility/insurer connectors.  
-- **#10:** **proposed** bank_usd + ecocash (pending).  
-- **Open:** U1–U7; depend on workstreams A/B/C for partner settle reality and school supply hygiene.
+- **#10:** **LOCKED** — `bank_usd` + school-owned `ecocash`; Paynow/ZIPIT school-local only; cash/relative wallets out of Connect; MTOs settle with Senda validate→ref→confirm.  
+- **Open:** U1–U7; partner settle details are ops sequencing (do not reopen #9/#10).

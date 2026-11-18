@@ -11,7 +11,7 @@ Canonical documentation for the Senda 4.0 purpose-settlement wedge lives under `
 | --- | --- | --- |
 | 1–8 | Dogfood UI, Links, pricing, outreach, ZW-only pilot, docs on main, port pack, path `docs/senda-4.0/` | **Locked** |
 | **9** | Next.js App Router + TypeScript + Postgres; partner API keys + school/ops auth; S3-compatible proofs; Biller beside school systems; no NN / no ERP / no PSP-core day one | **LOCKED** |
-| 10 | Pilot settle: `bank_usd` + school-owned `ecocash` | **Proposed** (pending founder lock) |
+| **10** | Pilot Connect settle: `bank_usd` + school-owned `ecocash`; Paynow/ZIPIT school-local only; cash/relative wallets out of Connect; MTOs settle with Senda validate→ref→confirm | **LOCKED** |
 
 ## Index
 
@@ -27,7 +27,7 @@ Canonical documentation for the Senda 4.0 purpose-settlement wedge lives under `
 - [Supply — ZW schools](research/supply-zw-schools.md)
 - [Rails & stack](research/rails-and-stack.md) — informs #9 / #10
 - [Wedge comparison](research/wedge-comparison.md)
-- [Lock brief](research/lock-brief.md) — synthesis; **#9 LOCKED**
+- [Lock brief](research/lock-brief.md) — synthesis; **#9 + #10 LOCKED**
 
 ### Legacy path stubs
 Older paths redirect here so links do not break:
