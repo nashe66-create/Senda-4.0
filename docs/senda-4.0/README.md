@@ -28,6 +28,7 @@ Canonical documentation for the Senda 4.0 purpose-settlement wedge lives under `
 - [Rails & stack](research/rails-and-stack.md) — informs #9 / #10
 - [Wedge comparison](research/wedge-comparison.md)
 - [Lock brief](research/lock-brief.md) — synthesis; **#9 + #10 LOCKED**
+- [School-received confirmation](research/school-received-confirmation.md) — options beyond MTO attest (RC-05–RC-07)
 
 ### Testing (lock scenario pack)
 - [Testing pack](testing/README.md) — scenario catalog, YAML cases, test agents, coverage map
