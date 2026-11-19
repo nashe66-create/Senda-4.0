@@ -49,7 +49,11 @@ export default async function DogfoodPage() {
         <p style={{ margin: "0.5rem 0 0", color: "var(--muted)", maxWidth: 640 }}>
           Runs the Connect loop on fixture data with a{" "}
           <strong>test confirmation</strong> (not real bank proof). This does{" "}
-          <em>not</em> mean the organisation received money.
+          <em>not</em> mean the organisation received money. Use{" "}
+          <strong>happy path</strong> for a matching confirm, or{" "}
+          <strong>mismatch</strong> to force{" "}
+          <span className="mono">needs_reconcile</span> (needs a check) with no
+          payment proof.
         </p>
       </div>
       <DogfoodClient options={options} />

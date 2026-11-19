@@ -1,10 +1,21 @@
 import { redirect } from "next/navigation";
+import { SettleDestinationType } from "@prisma/client";
 import { getBillerSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { flagLabel, statusLabel } from "@/lib/ui-labels";
+import {
+  destinationTypeLabel,
+  flagLabel,
+  kybLabel,
+  statusLabel,
+} from "@/lib/ui-labels";
 import { LogoutButton } from "./logout-button";
 
 export const dynamic = "force-dynamic";
+
+const CONNECT_CHECKLIST_TYPES: SettleDestinationType[] = [
+  SettleDestinationType.bank_usd,
+  SettleDestinationType.ecocash,
+];
 
 export default async function BillerPage() {
   const session = await getBillerSession();
@@ -19,6 +30,14 @@ export default async function BillerPage() {
   if (!institution) {
     redirect("/login");
   }
+
+  const destinations = await prisma.settleDestination.findMany({
+    where: {
+      institutionId: institution.id,
+      type: { in: CONNECT_CHECKLIST_TYPES },
+    },
+    orderBy: [{ type: "asc" }, { externalId: "asc" }],
+  });
 
   const obligations = await prisma.obligation.findMany({
     where: { institutionId: institution.id },
@@ -39,6 +58,9 @@ export default async function BillerPage() {
   });
 
   const proofs = attempts.filter((a) => a.proof);
+
+  const kybVerified = institution.kybStatus === "verified";
+  const liveOk = institution.liveConnect;
 
   return (
     <div style={{ display: "grid", gap: "1.25rem" }}>
@@ -72,6 +94,119 @@ export default async function BillerPage() {
         </div>
         <LogoutButton />
       </div>
+
+      <section className="panel">
+        <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>
+          Organisation checks
+        </h2>
+        <p style={{ margin: "0 0 1rem", color: "var(--muted)", fontSize: "0.9rem" }}>
+          Thin checklist of what is verified vs pending before Connect can treat
+          this organisation as live. Not a full KYB product — demo flags only.
+        </p>
+
+        <h3 style={{ margin: "0 0 0.5rem", fontSize: "0.9rem" }}>
+          Organisation
+        </h3>
+        <ul
+          style={{
+            listStyle: "none",
+            margin: "0 0 1.25rem",
+            padding: 0,
+            display: "grid",
+            gap: "0.5rem",
+          }}
+        >
+          <li
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "1rem",
+              flexWrap: "wrap",
+              alignItems: "center",
+              padding: "0.45rem 0",
+              borderBottom: "1px solid var(--border)",
+            }}
+          >
+            <span>
+              Organisation checks (KYB){" "}
+              <span className="mono" style={{ color: "var(--muted)" }}>
+                kyb_status
+              </span>
+            </span>
+            <span
+              className={`badge ${kybVerified ? "badge-ok" : "badge-warn"}`}
+              title={institution.kybStatus}
+            >
+              {kybVerified ? "Verified" : kybLabel(institution.kybStatus)}
+            </span>
+          </li>
+          <li
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: "1rem",
+              flexWrap: "wrap",
+              alignItems: "center",
+              padding: "0.45rem 0",
+              borderBottom: "1px solid var(--border)",
+            }}
+          >
+            <span>
+              Live on Connect{" "}
+              <span className="mono" style={{ color: "var(--muted)" }}>
+                live_connect
+              </span>
+            </span>
+            <span className={`badge ${liveOk ? "badge-ok" : "badge-warn"}`}>
+              {liveOk ? "Live" : "Pending"}
+            </span>
+          </li>
+        </ul>
+
+        <h3 style={{ margin: "0 0 0.5rem", fontSize: "0.9rem" }}>
+          Payout accounts
+        </h3>
+        <p style={{ margin: "0 0 0.65rem", color: "var(--muted)", fontSize: "0.85rem" }}>
+          Connect settle destinations: Bank USD and organisation-owned EcoCash.
+        </p>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Payout account</th>
+              <th>Type</th>
+              <th>Detail</th>
+              <th>Check</th>
+            </tr>
+          </thead>
+          <tbody>
+            {destinations.map((d) => (
+              <tr key={d.id}>
+                <td className="mono">{d.externalId}</td>
+                <td>{destinationTypeLabel(d.type)}</td>
+                <td style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
+                  {d.type === SettleDestinationType.bank_usd
+                    ? [d.bankName, d.accountNumber].filter(Boolean).join(" · ")
+                    : [d.ownership, d.msisdn].filter(Boolean).join(" · ")}
+                </td>
+                <td>
+                  <span
+                    className={`badge ${d.verified ? "badge-ok" : "badge-warn"}`}
+                  >
+                    {d.verified ? "Verified" : "Pending"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+            {destinations.length === 0 && (
+              <tr>
+                <td colSpan={4} style={{ color: "var(--muted)" }}>
+                  No Connect payout accounts seeded.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </section>
 
       <section className="panel">
         <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Amounts due</h2>

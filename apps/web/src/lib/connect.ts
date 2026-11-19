@@ -422,24 +422,36 @@ export async function confirmPayment(input: {
     );
   }
 
-  // Idempotent replay
-  if (attempt.confirmation && attempt.proof) {
+  // Idempotent replay — proven attempts have proof; needs_reconcile has none
+  if (attempt.confirmation) {
+    if (
+      attempt.confirmation.reconResult === "proven" &&
+      !attempt.proof
+    ) {
+      throw new ConnectError(
+        "already_confirmed",
+        "Attempt already confirmed but proof missing — contact ops",
+        409,
+      );
+    }
     return {
       attempt_id: attempt.id,
       status: attempt.status,
       recon_result: attempt.confirmation.reconResult,
-      proof_id: attempt.proof.id,
-      storage_key: attempt.proof.storageKey,
+      recon_notes: attempt.confirmation.reconNotes,
+      proof_id: attempt.proof?.id ?? null,
+      storage_key: attempt.proof?.storageKey ?? null,
+      proof_issued: Boolean(attempt.proof),
+      instructed: {
+        amount: instruction.amount.toFixed(2),
+        currency: instruction.currency,
+      },
+      confirmed: {
+        amount: attempt.confirmation.amount.toFixed(2),
+        currency: attempt.confirmation.currency,
+      },
       idempotent_replay: true,
     };
-  }
-
-  if (attempt.confirmation && !attempt.proof) {
-    throw new ConnectError(
-      "already_confirmed",
-      "Attempt already confirmed but proof missing — contact ops",
-      409,
-    );
   }
 
   if (instruction.customerReference !== input.customerReference) {
@@ -496,6 +508,12 @@ export async function confirmPayment(input: {
       data: { status: obligationStatus },
     });
 
+    // Trusted senda.proof.v1 only when amount + currency match.
+    // Mismatch → needs a check; no payment proof issued for the organisation.
+    if (reconResult !== "proven") {
+      return { confirmation, proof: null, attemptStatus };
+    }
+
     const proofPayload = {
       schema: "senda.proof.v1",
       attempt_id: attempt.id,
@@ -551,8 +569,18 @@ export async function confirmPayment(input: {
     attempt_id: attempt.id,
     status: result.attemptStatus,
     recon_result: reconResult,
-    proof_id: result.proof.id,
-    storage_key: result.proof.storageKey,
+    recon_notes: reconNotes,
+    proof_id: result.proof?.id ?? null,
+    storage_key: result.proof?.storageKey ?? null,
+    proof_issued: Boolean(result.proof),
+    instructed: {
+      amount: instruction.amount.toFixed(2),
+      currency: instruction.currency,
+    },
+    confirmed: {
+      amount: confirmedAmount.toFixed(2),
+      currency: input.currency.toUpperCase(),
+    },
     idempotent_replay: false,
   };
 }

@@ -23,3 +23,26 @@ export const FLAG_LABEL: Record<string, string> = {
 export function flagLabel(flag: string): string {
   return FLAG_LABEL[flag] ?? flag;
 }
+
+/** Organisation checks (KYB) — expand once, then “verified organisation”. */
+export const KYB_LABEL: Record<string, string> = {
+  pending: "Pending",
+  verified: "Verified",
+  rejected: "Rejected",
+};
+
+export function kybLabel(status: string): string {
+  return KYB_LABEL[status] ?? status;
+}
+
+export const DESTINATION_TYPE_LABEL: Record<string, string> = {
+  bank_usd: "Bank USD",
+  ecocash: "EcoCash",
+  cash_pickup: "Cash pickup",
+  paynow: "Paynow",
+  zipit: "ZIPIT",
+};
+
+export function destinationTypeLabel(type: string): string {
+  return DESTINATION_TYPE_LABEL[type] ?? type;
+}
