@@ -29,6 +29,7 @@ Canonical documentation for the Senda 4.0 purpose-settlement wedge lives under `
 - [Wedge comparison](research/wedge-comparison.md)
 - [Lock brief](research/lock-brief.md) — synthesis; **#9 + #10 LOCKED**
 - [School-received confirmation](research/school-received-confirmation.md) — options beyond MTO attest (RC-05–RC-07)
+- [Bharat Connect / BBPS](research/bbps-india.md) — India school-fee rail reference (directory, fetch-then-pay, settlement)
 
 ### Testing (lock scenario pack)
 - [Testing pack](testing/README.md) — scenario catalog, YAML cases, test agents, coverage map
@@ -39,3 +40,4 @@ Older paths redirect here so links do not break:
 - `docs/senda-4-work-plan.md` → [work-plan.md](work-plan.md)
 - `docs/project-context.md` → [context/project-context.md](context/project-context.md)
 - `senda/docs/senda-4.0-pivot.md` → [pivot.md](pivot.md)
+- `senda/docs/bbps-india.md` → [research/bbps-india.md](research/bbps-india.md)
