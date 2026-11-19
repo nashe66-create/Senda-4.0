@@ -80,10 +80,11 @@ Aligned with product-spec §18 build sequence and stage operating plan. Doctrine
 - Ops exceptions queue (can be thin admin)
 
 ### M6 — Wedge pilot loop
-- Dogfood thin UI **if** founder keeps default (open decision #1)
+- Dogfood thin UI **if** founder keeps default (open decision #1) — shipped as `/dogfood`
+- Guided partner walkthrough **`/pilot`** + [pilot runbook](product/pilot-runbook.md) + curl script (`product/scripts/pilot-loop.sh`) — Connect sandbox key → bursar proof
 - Design-partner outreach parallel (remittance / purpose-pay class — ZW corridor fit; none named as product identity)
 - 5–10 **Zimbabwe** private schools; real or sandbox settle with Senda payment reference
-- **Exit (MVP done):** product-spec §15 acceptance checklist green (corridor = ZW); `senda_settles` still absent
+- **Exit (MVP product loop):** one demo organisation + partner sandbox key + open bill → instruct → confirm → proof visible to bursar; mismatch → needs a check / no proof; `senda_settles` still absent. (Broader product-spec §15 / 5–10 live schools = outreach parallel, not blocked on this code loop.)
 
 ### Later (after wedge)
 - Sell same network into more remittance partners; medical/utilities billers; denser Network effects  

@@ -226,14 +226,17 @@ Out-of-date amount due `obl_stale` is rejected on validate. Rejected payout type
 
 **Option A — curl** (above): validate → instruct → confirm with the demo key.
 
-**Option B — test loop UI:** open `/dogfood`, run happy path or mismatch. Uses the same demo partner in the DB; **test confirmation ≠ money received at the organisation.**
+**Option B — pilot walkthrough (M6):** open `/pilot`, or run `bash docs/senda-4.0/product/scripts/pilot-loop.sh`. Uses the sandbox API key on Connect, then hands off to Biller for proof. See [pilot runbook](./pilot-runbook.md). **Sandbox confirm ≠ money received at the organisation.**
 
-**Option C — mismatch check:** confirm with a wrong amount (or wrong payment reference). Expect `recon_result: "needs_reconcile"`, `proof_issued: false`.
+**Option C — test loop UI:** open `/dogfood`, run happy path or mismatch. Uses the same demo partner in the DB (no key paste); **test confirmation ≠ money received at the organisation.**
+
+**Option D — mismatch check:** confirm with a wrong amount (or wrong payment reference). Expect `recon_result: "needs_reconcile"`, `proof_issued: false`.
 
 ```bash
 # From apps/web after migrate + seed + npm run dev
 # 1) instruct once, capture attempt_id + customer_reference
 # 2) confirm with amount 800.00 → needs a check
+# Or: bash docs/senda-4.0/product/scripts/pilot-loop.sh --mismatch
 ```
 
 ---
@@ -241,6 +244,5 @@ Out-of-date amount due `obl_stale` is rejected on validate. Rejected payout type
 ## 7. Out of scope here
 
 - Outbound webhooks (`attempt.proven`, …) — later  
-- Biller UI depth (M5)  
-- Live pilot ops loop (M6)  
+- Production MTO webhooks (pilot uses sandbox stub confirm)  
 - Bank / wallet credit evidence (future trust ladder)

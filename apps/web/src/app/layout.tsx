@@ -18,7 +18,7 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Senda 4.0",
   description:
-    "Purpose-settlement network — Connect, Biller, and test loop (first wedge: UK→ZW school fees)",
+    "Purpose-settlement network — Connect, Biller, pilot walkthrough, and test loop (first wedge: UK→ZW school fees)",
 };
 
 export default function RootLayout({
@@ -67,6 +67,7 @@ export default function RootLayout({
                 fontSize: "0.9rem",
               }}
             >
+              <Link href="/pilot">Pilot</Link>
               <Link href="/dogfood">Test loop</Link>
               <Link href="/biller">Biller</Link>
               <Link href="/login">Biller login</Link>

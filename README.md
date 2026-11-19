@@ -37,7 +37,7 @@ npm run db:seed
 npm run dev
 ```
 
-Then open http://localhost:3000 → **Test loop** for the happy path, or **Biller login** (`bursar@heritage-demo.zw` / `pilot`) for Biller.
+Then open http://localhost:3000 → **Pilot** (`/pilot`) for the partner walkthrough, **Test loop** for one-click engineering checks, or **Biller login** (`bursar@heritage-demo.zw` / `pilot`). Runbook: [`docs/senda-4.0/product/pilot-runbook.md`](docs/senda-4.0/product/pilot-runbook.md).
 
 Without Docker, point `DATABASE_URL` in `apps/web/.env` at any Postgres 16 instance (user/db `senda` / password `senda` matches the compose defaults).
 

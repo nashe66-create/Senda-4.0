@@ -470,8 +470,9 @@ export default async function BillerPage() {
         </p>
         {attempts.length === 0 ? (
           <p style={{ color: "var(--muted)", margin: 0 }}>
-            No payments yet. Run the{" "}
-            <Link href="/dogfood">test loop</Link> to create a confirmed pay (or
+            No payments yet. Walk the{" "}
+            <Link href="/pilot">pilot loop</Link> (or{" "}
+            <Link href="/dogfood">test loop</Link>) to create a confirmed pay (or
             a mismatch that needs a check).
           </p>
         ) : (
