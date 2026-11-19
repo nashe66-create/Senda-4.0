@@ -58,7 +58,7 @@ When creating pay instructions, send a **retry key** so a network retry does not
 
 **Rules**
 
-1. Same retry key + same pay code + same amount due + same amount → same pay instructions again (`replayed: true`). **Safe to retry.**
+1. Same retry key + same pay code + same amount due + same amount → same pay instructions again (`replayed: true`). **Safe to retry** — including concurrent retries (unique-key races resolve to the same payment, not a 500).
 2. Same retry key with a **different** pay code, amount due, or amount → `409` `retry_key_conflict`. Use a **new** retry key for a new payment.
 3. Generate the key in your system (e.g. your collect / order id). Do not reuse a key across different pays.
 

@@ -310,6 +310,80 @@ function instructResponse(
   };
 }
 
+type AttemptWithInstruction = {
+  id: string;
+  status: string;
+  amount: Prisma.Decimal;
+  instruction: {
+    customerReference: string;
+    frozenDestination: Prisma.JsonValue;
+    amount: Prisma.Decimal;
+    currency: string;
+  } | null;
+  obligation: { id: string; externalId: string };
+  link: { linkCode: string };
+};
+
+/** Same retry key → replay existing instructions, or conflict if payload differs. */
+function replayOrConflictRetryKey(
+  existing: AttemptWithInstruction,
+  input: {
+    linkCode: string;
+    obligationId: string;
+    amount: string | number;
+  },
+) {
+  const sameLink = existing.link.linkCode === input.linkCode;
+  const sameObligation =
+    existing.obligation.externalId === input.obligationId ||
+    existing.obligation.id === input.obligationId;
+  const requestedAmount = new Prisma.Decimal(input.amount);
+  const sameAmount = existing.amount.equals(requestedAmount);
+
+  if (!sameLink || !sameObligation || !sameAmount) {
+    throw new ConnectError(
+      "retry_key_conflict",
+      "This retry key was already used for a different pay code, amount due, or amount. Use a new retry key for a new payment.",
+      409,
+      {
+        code_alias: "idempotency_conflict",
+        safe_to_retry: false,
+      },
+    );
+  }
+  if (!existing.instruction) {
+    throw new ConnectError(
+      "validation_error",
+      "Pay instructions for this retry key are still being created. Safe to retry with the same retry key in a moment.",
+      409,
+      { safe_to_retry: true },
+    );
+  }
+  return instructResponse(
+    {
+      id: existing.id,
+      status: existing.status,
+      instruction: existing.instruction,
+    },
+    true,
+  );
+}
+
+async function loadAttemptByRetryKey(idempotencyKey: string) {
+  return prisma.attempt.findUnique({
+    where: { idempotencyKey },
+    include: { instruction: true, obligation: true, link: true },
+  });
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  // Avoid `instanceof` — Next bundling can duplicate Prisma's error class.
+  if (!err || typeof err !== "object") return false;
+  const e = err as { code?: string; message?: string };
+  if (e.code === "P2002") return true;
+  return typeof e.message === "string" && e.message.includes("Unique constraint");
+}
+
 export async function instructPayment(input: {
   partner: Partner;
   linkCode: string;
@@ -320,41 +394,9 @@ export async function instructPayment(input: {
   destinationType?: SettleDestinationType;
   payerHint?: string;
 }) {
-  const existing = await prisma.attempt.findUnique({
-    where: { idempotencyKey: input.idempotencyKey },
-    include: { instruction: true, obligation: true, link: true },
-  });
-
+  const existing = await loadAttemptByRetryKey(input.idempotencyKey);
   if (existing) {
-    const sameLink = existing.link.linkCode === input.linkCode;
-    const sameObligation =
-      existing.obligation.externalId === input.obligationId ||
-      existing.obligationId === input.obligationId;
-    const requestedAmount = new Prisma.Decimal(input.amount);
-    const sameAmount = existing.amount.equals(requestedAmount);
-
-    if (!sameLink || !sameObligation || !sameAmount) {
-      throw new ConnectError(
-        "retry_key_conflict",
-        "This retry key was already used for a different pay code, amount due, or amount. Use a new retry key for a new payment.",
-        409,
-        {
-          // System alias kept for scenario pack / older clients
-          code_alias: "idempotency_conflict",
-          safe_to_retry: false,
-        },
-      );
-    }
-    if (existing.instruction) {
-      return instructResponse(
-        {
-          id: existing.id,
-          status: existing.status,
-          instruction: existing.instruction,
-        },
-        true,
-      );
-    }
+    return replayOrConflictRetryKey(existing, input);
   }
 
   const validated = await validatePayment({
@@ -367,53 +409,73 @@ export async function instructPayment(input: {
 
   const { link, obligation, dest } = validated._internal;
 
-  const attempt = await prisma.$transaction(async (tx) => {
-    const created = await tx.attempt.create({
-      data: {
-        partnerId: input.partner.id,
-        obligationId: obligation.id,
-        linkId: link.id,
-        idempotencyKey: input.idempotencyKey,
-        status: "instructed",
-        amount: obligation.amount,
-        currency: obligation.currency,
-        destinationType: dest.type,
-        payerHint: input.payerHint,
+  try {
+    const attempt = await prisma.$transaction(async (tx) => {
+      const created = await tx.attempt.create({
+        data: {
+          partnerId: input.partner.id,
+          obligationId: obligation.id,
+          linkId: link.id,
+          idempotencyKey: input.idempotencyKey,
+          status: "instructed",
+          amount: obligation.amount,
+          currency: obligation.currency,
+          destinationType: dest.type,
+          payerHint: input.payerHint,
+        },
+      });
+
+      const customerReference = generateCustomerReference(created.id);
+
+      await tx.instruction.create({
+        data: {
+          attemptId: created.id,
+          customerReference,
+          settleDestinationId: dest.id,
+          frozenDestination: freezeDestination(dest),
+          amount: obligation.amount,
+          currency: obligation.currency,
+        },
+      });
+
+      await tx.obligation.update({
+        where: { id: obligation.id },
+        data: { status: "instructed" },
+      });
+
+      return tx.attempt.findUniqueOrThrow({
+        where: { id: created.id },
+        include: { instruction: true },
+      });
+    });
+
+    return instructResponse(
+      {
+        id: attempt.id,
+        status: attempt.status,
+        instruction: attempt.instruction!,
       },
-    });
-
-    const customerReference = generateCustomerReference(created.id);
-
-    await tx.instruction.create({
-      data: {
-        attemptId: created.id,
-        customerReference,
-        settleDestinationId: dest.id,
-        frozenDestination: freezeDestination(dest),
-        amount: obligation.amount,
-        currency: obligation.currency,
-      },
-    });
-
-    await tx.obligation.update({
-      where: { id: obligation.id },
-      data: { status: "instructed" },
-    });
-
-    return tx.attempt.findUniqueOrThrow({
-      where: { id: created.id },
-      include: { instruction: true },
-    });
-  });
-
-  return instructResponse(
-    {
-      id: attempt.id,
-      status: attempt.status,
-      instruction: attempt.instruction!,
-    },
-    false,
-  );
+      false,
+    );
+  } catch (err) {
+    // Concurrent instruct with the same retry key: unique index race.
+    // Treat as safe replay (or conflict if the other request used different fields).
+    if (isUniqueViolation(err)) {
+      // Brief wait for the winning transaction to finish writing Instruction.
+      for (let i = 0; i < 8; i++) {
+        const raced = await loadAttemptByRetryKey(input.idempotencyKey);
+        if (raced?.instruction) {
+          return replayOrConflictRetryKey(raced, input);
+        }
+        await new Promise((r) => setTimeout(r, 25 * (i + 1)));
+      }
+      const raced = await loadAttemptByRetryKey(input.idempotencyKey);
+      if (raced) {
+        return replayOrConflictRetryKey(raced, input);
+      }
+    }
+    throw err;
+  }
 }
 
 function confirmResponse(input: {
