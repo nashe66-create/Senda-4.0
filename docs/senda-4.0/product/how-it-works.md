@@ -72,6 +72,8 @@ Instructions: same + idempotency_key → attempt_id, customer_reference, destina
 Confirm: attempt_id, customer_reference, amount, partner_payment_id, settled_at → proven | needs_reconcile.  
 Auth: partner API key. Field names not frozen until docs pack / API contract lands.
 
+**Deeper model:** [Connect concepts](./connect-concepts.md) — purpose, inputs, rules, failure codes, and M1 stub-vs-real for lookup, Link, KYB, validate/instruct/confirm, proof, and partner capabilities.
+
 ## Ledger clarification
 
 Senda keeps a **fees-due ledger** (Fee plans + per-student Obligations + payment status). That is how we know Term 3 due. We do **not** keep the school’s full accounting/ERP ledger. If no Obligation exists for Term 3, Connect cannot know that student’s Term 3 due.

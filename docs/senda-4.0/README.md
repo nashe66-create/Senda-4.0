@@ -17,6 +17,7 @@ Canonical documentation for the Senda 4.0 purpose-settlement wedge lives under `
 
 ### Product & doctrine
 - [How it works](product/how-it-works.md) — working product spec
+- [Connect concepts](product/connect-concepts.md) — pseudocode model (lookup, Link, KYB, validate/instruct/confirm, proof)
 - [Pivot](pivot.md) — 3.0 → 4.0 narrative
 - [Work plan](work-plan.md) — milestones M0–M6 + backlog
 - [Project context](context/project-context.md) — short orientation
