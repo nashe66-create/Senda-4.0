@@ -302,7 +302,8 @@ POST /api/v1/connect/instruct
   link_code,
   obligation_id,
   amount,                 # required; must match
-  idempotency_key,        # retry key — same key = same payment, not a duplicate
+  retry_key,              # preferred — same key = same payment, not a duplicate
+  # alias: idempotency_key (system name) or Idempotency-Key / X-Retry-Key header
   destination_type?,
   payer_hint?
 }
@@ -313,7 +314,7 @@ POST /api/v1/connect/instruct
 ```
 PSEUDO instruct(partner, input):
   IF retry key already used:
-    IF same pay code + amount due → return the same instructions again
+    IF same pay code + amount due + amount → return the same instructions again (replayed)
     ELSE → conflict (don’t silently attach to a different bill)
   run validate (amount required)
   create payment (status = instructed)
@@ -327,11 +328,11 @@ PSEUDO instruct(partner, input):
 
 > Send the same **retry key** if your request may have been retried. You will get the same pay instructions back — you will not open a second payment by accident.
 
-Avoid leading with “idempotent.”
+Avoid leading with “idempotent.” Partner sandbox guide: [connect-partner-sandbox.md](./connect-partner-sandbox.md).
 
-### M1
+### M1 / M4
 
-**Real**, including safe retry. Senda does **not** move the money.
+**Real**, including safe retry + amount conflict on retry key. Senda does **not** move the money.
 
 ---
 
@@ -357,6 +358,8 @@ POST /api/v1/connect/confirm
 
 Confirmation **source** (system): `partner_api` | `dogfood_stub` (test) | `manual_ops`.
 
+Stable request/response JSON and curl examples: [connect-partner-sandbox.md §4.3](./connect-partner-sandbox.md).
+
 ### Day-one trust
 
 This is **partner attestation** (“we paid”), not a bank statement or wallet feed proving the organisation received funds.
@@ -366,15 +369,16 @@ This is **partner attestation** (“we paid”), not a bank statement or wallet 
 ```
 PSEUDO confirm(partner, input):
   load payment + pay instructions
-  payment reference must match
-  IF amount + currency match instructions → confirmed (proven)
-  ELSE → needs a check
-  save partner confirmation + payment proof
+  IF already confirmed with same details → return existing outcome (replayed)
+  IF already confirmed with different details → conflict
+  compare payment reference + amount + currency to instructions
+  IF all three match → confirmed (proven) + write payment proof
+  ELSE → needs a check (needs_reconcile); save confirmation; no trusted proof
 ```
 
-### M1
+### M1 / M4
 
-**Real** for reference / amount / currency. No bank feed yet.
+**Real** for reference / amount / currency — mismatches map to `needs_reconcile`. No bank feed yet.
 
 ---
 

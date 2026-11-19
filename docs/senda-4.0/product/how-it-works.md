@@ -72,8 +72,8 @@ Consumer remittance competition on rates/speed; `senda_settles` / adaptor-as-pay
 ## Connect payloads (draft)
 
 Validate: partner_id, link_code (pay code), obligation_id (amount due), amount, payer hint → ok + summaries.  
-Instructions: same + **retry key** (`idempotency_key`) → attempt_id, customer_reference (payment reference), destination snapshot. Same retry key is **safe to retry** — you get the same pay instructions back, not a second payment.  
-Confirm: attempt_id, customer_reference, amount, partner_payment_id, settled_at → confirmed | needs a check.  
+Instructions: same + **retry key** (`retry_key`; system alias `idempotency_key`) → attempt_id, customer_reference (payment reference), destination snapshot. Same retry key is **safe to retry** — you get the same pay instructions back, not a second payment.  
+Confirm: attempt_id, customer_reference, amount, currency, partner_payment_id, settled_at → confirmed | needs a check (reference/amount/currency mismatches → needs a check). Partner sandbox: [connect-partner-sandbox.md](./connect-partner-sandbox.md).  
 Auth: partner API key. Field names not frozen until docs pack / API contract lands.
 
 **Deeper model:** [Connect concepts](./connect-concepts.md) — plain-language wording map + purpose, inputs, rules, failure codes, and M1 stub-vs-real (partners/billers generic; school fees = first wedge example).

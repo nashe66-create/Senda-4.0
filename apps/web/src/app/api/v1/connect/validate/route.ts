@@ -18,7 +18,9 @@ export async function POST(request: Request) {
   try {
     const auth = await requirePartner(request);
     if (!auth.ok) {
-      return jsonError(auth.error.code, auth.error.message, auth.status);
+      return jsonError(auth.error.code, auth.error.message, auth.status, {
+        safe_to_retry: false,
+      });
     }
 
     const body = bodySchema.parse(await request.json());

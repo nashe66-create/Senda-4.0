@@ -45,32 +45,35 @@ Open http://localhost:3000
 
 ### Connect API (sandbox)
 
-Base: `http://localhost:3000/api/v1/connect`
+Base: `http://localhost:3000/api/v1/connect`  
+**Partner guide:** [`../../docs/senda-4.0/product/connect-partner-sandbox.md`](../../docs/senda-4.0/product/connect-partner-sandbox.md)
 
-Header: `Authorization: Bearer sk_sandbox_mukuru_demo`  
-*(fixture key id — demo remittance partner; not a product brand)*
+Header: `Authorization: Bearer sk_sandbox_partner_demo`  
+*(demo remittance partner fixture — not a product brand)*
+
+Unauthenticated calls return `401` with `{ "error": { "code": "unauthorized", "message": "…" } }`.
 
 ```bash
 # Validate (“can we pay this?”)
 curl -s -X POST localhost:3000/api/v1/connect/validate \
-  -H "Authorization: Bearer sk_sandbox_mukuru_demo" \
+  -H "Authorization: Bearer sk_sandbox_partner_demo" \
   -H "content-type: application/json" \
   -d '{"link_code":"HDA-ADA-001","obligation_id":"obl_001","amount":"850.00","destination_type":"bank_usd"}'
 
-# Instruct — retry key (idempotency_key): same key is safe to retry
+# Instruct — retry_key: same key is safe to retry (alias: idempotency_key)
 curl -s -X POST localhost:3000/api/v1/connect/instruct \
-  -H "Authorization: Bearer sk_sandbox_mukuru_demo" \
+  -H "Authorization: Bearer sk_sandbox_partner_demo" \
   -H "content-type: application/json" \
-  -d '{"link_code":"HDA-ADA-001","obligation_id":"obl_001","amount":"850.00","idempotency_key":"demo-1","destination_type":"bank_usd"}'
+  -d '{"link_code":"HDA-ADA-001","obligation_id":"obl_001","amount":"850.00","retry_key":"demo-1","destination_type":"bank_usd"}'
 
 # Confirm (partner attestation — safe to retry with same payload)
 curl -s -X POST localhost:3000/api/v1/connect/confirm \
-  -H "Authorization: Bearer sk_sandbox_mukuru_demo" \
+  -H "Authorization: Bearer sk_sandbox_partner_demo" \
   -H "content-type: application/json" \
   -d '{"attempt_id":"<from instruct>","customer_reference":"<from instruct>","amount":"850.00","currency":"USD","partner_payment_id":"PARTNER-1"}'
 ```
 
-Rejected destination types (`cash_pickup`, relative EcoCash, `paynow`, `zipit`) return `destination_rejected`. Partner capability / corridor mismatches return `partner_capability_mismatch` or `corridor_not_supported`.
+Rejected destination types (`cash_pickup`, relative EcoCash, `paynow`, `zipit`) return `destination_rejected`. Partner capability / corridor mismatches return `partner_capability_mismatch` or `corridor_not_supported`. Amount / currency / payment-reference mismatches on confirm → `needs_reconcile` (needs a check); no proof.
 
 ### Fixture (from `docs/senda-4.0/testing/fixtures/pilot-zw.yaml`)
 
@@ -93,7 +96,7 @@ JSON written under `apps/web/proofs/` (local stub of S3-compatible object storag
 | Confirmed | `proven` |
 | Needs a check | `needs_reconcile` |
 | Test confirmation | `dogfood_stub` |
-| Retry key | `idempotency_key` |
+| Retry key | `retry_key` (alias `idempotency_key`) |
 
 Prisma model names are **not** renamed in this pass. Open call: whether system `Obligation` should become `Due` / `Bill` / `AmountDue` later.
 

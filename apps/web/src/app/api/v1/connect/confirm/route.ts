@@ -3,6 +3,32 @@ import { requirePartner } from "@/lib/auth";
 import { confirmPayment } from "@/lib/connect";
 import { jsonOk, handleRouteError, jsonError } from "@/lib/api";
 
+/**
+ * Partner → Senda confirm callback.
+ *
+ * Request (JSON):
+ * {
+ *   "attempt_id": "<from instruct>",
+ *   "customer_reference": "<payment reference from instruct>",
+ *   "amount": "850.00",
+ *   "currency": "USD",
+ *   "partner_payment_id": "<partner's own settle id>",   // optional
+ *   "settled_at": "2026-11-19T12:00:00.000Z"             // optional ISO-8601
+ * }
+ *
+ * Response (stable):
+ * {
+ *   "attempt_id", "status", "recon_result", "recon_notes",
+ *   "proof_id", "storage_key", "proof_issued",
+ *   "customer_reference", "partner_payment_id", "settled_at",
+ *   "instructed": { "amount", "currency" },
+ *   "confirmed": { "amount", "currency" },
+ *   "replayed"
+ * }
+ *
+ * recon_result: "proven" (confirmed) | "needs_reconcile" (needs a check)
+ * Mismatched payment reference, amount, or currency → needs_reconcile; no proof.
+ */
 const bodySchema = z.object({
   attempt_id: z.string().min(1),
   customer_reference: z.string().min(1),
