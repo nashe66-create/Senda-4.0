@@ -1,0 +1,294 @@
+// Senda 4.0 domain — Institution → SettleDestination → Beneficiary → Link
+// → Obligation → Attempt → Instruction → Confirmation → Proof
+// Live corridor: ZW only. Other corridors are enums-only.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CountryCode {
+  ZW
+  NG
+  GH
+  KE
+  ZA
+}
+
+enum Corridor {
+  UK_ZW
+  UK_NG
+  UK_GH
+}
+
+enum KybStatus {
+  pending
+  verified
+  rejected
+}
+
+enum SettleDestinationType {
+  bank_usd
+  ecocash
+  cash_pickup
+  paynow
+  zipit
+}
+
+enum EcoCashOwnership {
+  school_merchant
+  school_institutional
+  relative_personal
+  staff_personal
+}
+
+enum LinkBinding {
+  open_student_school
+  payer_bound
+}
+
+enum ObligationStatus {
+  open
+  instructed
+  proven
+  cancelled
+  needs_reconcile
+}
+
+enum AttemptStatus {
+  created
+  instructed
+  confirmed
+  proven
+  needs_reconcile
+  cancelled
+}
+
+enum ConfirmationSource {
+  partner_api
+  dogfood_stub
+  manual_ops
+}
+
+enum ReconResult {
+  proven
+  needs_reconcile
+}
+
+model Partner {
+  id                       String   @id @default(cuid())
+  partnerId                String   @unique @map("partner_id")
+  name                     String
+  apiKeyHash               String   @map("api_key_hash")
+  apiKeyHint               String   @map("api_key_hint")
+  corridors                CountryCode[]
+  destinationCapabilities  SettleDestinationType[] @map("destination_capabilities")
+  active                   Boolean  @default(true)
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+  attempts                 Attempt[]
+
+  @@map("partners")
+}
+
+model Institution {
+  id            String              @id @default(cuid())
+  externalId    String              @unique @map("external_id")
+  name          String
+  country       CountryCode
+  kybStatus     KybStatus           @default(pending) @map("kyb_status")
+  liveConnect   Boolean             @default(false) @map("live_connect")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  destinations  SettleDestination[]
+  beneficiaries Beneficiary[]
+  links         Link[]
+  feeTemplates  FeeTemplate[]
+  obligations   Obligation[]
+  schoolUsers   SchoolUser[]
+
+  @@map("institutions")
+}
+
+model SchoolUser {
+  id            String      @id @default(cuid())
+  email         String      @unique
+  name          String
+  passwordStub  String      @map("password_stub") // M1 stub only — replace with real auth
+  institutionId String      @map("institution_id")
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@map("school_users")
+}
+
+model SettleDestination {
+  id            String               @id @default(cuid())
+  externalId    String               @unique @map("external_id")
+  institutionId String               @map("institution_id")
+  institution   Institution          @relation(fields: [institutionId], references: [id])
+  type          SettleDestinationType
+  verified      Boolean              @default(false)
+  currency      String               @default("USD")
+  // bank_usd
+  accountTitle  String?              @map("account_title")
+  bankName      String?              @map("bank_name")
+  accountNumber String?              @map("account_number")
+  // ecocash
+  ownership     EcoCashOwnership?
+  msisdn        String?
+  // paynow / zipit (school-local only — rejected for Connect)
+  merchantId    String?              @map("merchant_id")
+  schoolCode    String?              @map("school_code")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @updatedAt @map("updated_at")
+  instructions  Instruction[]
+
+  @@index([institutionId])
+  @@map("settle_destinations")
+}
+
+model Beneficiary {
+  id            String      @id @default(cuid())
+  externalId    String      @unique @map("external_id")
+  institutionId String      @map("institution_id")
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  studentRef    String      @map("student_ref")
+  name          String
+  grade         String?
+  active        Boolean     @default(true)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+  links         Link[]
+  obligations   Obligation[]
+
+  @@unique([institutionId, studentRef])
+  @@map("beneficiaries")
+}
+
+model Link {
+  id            String      @id @default(cuid())
+  externalId    String      @unique @map("external_id")
+  linkCode      String      @unique @map("link_code")
+  institutionId String      @map("institution_id")
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  beneficiaryId String      @map("beneficiary_id")
+  beneficiary   Beneficiary @relation(fields: [beneficiaryId], references: [id])
+  binding       LinkBinding @default(open_student_school)
+  active        Boolean     @default(true)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  attempts      Attempt[]
+
+  @@index([institutionId])
+  @@map("links")
+}
+
+model FeeTemplate {
+  id            String      @id @default(cuid())
+  externalId    String      @unique @map("external_id")
+  institutionId String      @map("institution_id")
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  grade         String
+  term          String
+  amount        Decimal     @db.Decimal(12, 2)
+  currency      String      @default("USD")
+  corridor      Corridor    @default(UK_ZW)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  obligations   Obligation[]
+
+  @@map("fee_templates")
+}
+
+model Obligation {
+  id            String           @id @default(cuid())
+  externalId    String           @unique @map("external_id")
+  institutionId String           @map("institution_id")
+  institution   Institution      @relation(fields: [institutionId], references: [id])
+  beneficiaryId String           @map("beneficiary_id")
+  beneficiary   Beneficiary      @relation(fields: [beneficiaryId], references: [id])
+  feeTemplateId String?          @map("fee_template_id")
+  feeTemplate   FeeTemplate?     @relation(fields: [feeTemplateId], references: [id])
+  amount        Decimal          @db.Decimal(12, 2)
+  currency      String           @default("USD")
+  status        ObligationStatus @default(open)
+  stale         Boolean          @default(false)
+  dueLabel      String?          @map("due_label")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+  attempts      Attempt[]
+
+  @@index([institutionId, status])
+  @@map("obligations")
+}
+
+model Attempt {
+  id               String         @id @default(cuid())
+  partnerId        String?        @map("partner_id")
+  partner          Partner?       @relation(fields: [partnerId], references: [id])
+  obligationId     String         @map("obligation_id")
+  obligation       Obligation     @relation(fields: [obligationId], references: [id])
+  linkId           String         @map("link_id")
+  link             Link           @relation(fields: [linkId], references: [id])
+  idempotencyKey   String         @unique @map("idempotency_key")
+  status           AttemptStatus  @default(created)
+  amount           Decimal        @db.Decimal(12, 2)
+  currency         String         @default("USD")
+  destinationType  SettleDestinationType @map("destination_type")
+  payerHint        String?        @map("payer_hint")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  instruction      Instruction?
+  confirmation     Confirmation?
+  proof            Proof?
+
+  @@index([obligationId])
+  @@map("attempts")
+}
+
+model Instruction {
+  id                   String            @id @default(cuid())
+  attemptId            String            @unique @map("attempt_id")
+  attempt              Attempt           @relation(fields: [attemptId], references: [id])
+  customerReference    String            @unique @map("customer_reference")
+  settleDestinationId  String            @map("settle_destination_id")
+  settleDestination    SettleDestination @relation(fields: [settleDestinationId], references: [id])
+  // Frozen snapshot at instruct time
+  frozenDestination    Json              @map("frozen_destination")
+  amount               Decimal           @db.Decimal(12, 2)
+  currency             String
+  createdAt            DateTime          @default(now()) @map("created_at")
+
+  @@map("instructions")
+}
+
+model Confirmation {
+  id                String             @id @default(cuid())
+  attemptId         String             @unique @map("attempt_id")
+  attempt           Attempt            @relation(fields: [attemptId], references: [id])
+  customerReference String             @map("customer_reference")
+  amount            Decimal            @db.Decimal(12, 2)
+  currency          String
+  partnerPaymentId  String?            @map("partner_payment_id")
+  settledAt         DateTime           @map("settled_at")
+  source            ConfirmationSource @default(partner_api)
+  reconResult       ReconResult        @map("recon_result")
+  reconNotes        String?            @map("recon_notes")
+  createdAt         DateTime           @default(now()) @map("created_at")
+
+  @@map("confirmations")
+}
+
+model Proof {
+  id          String   @id @default(cuid())
+  attemptId   String   @unique @map("attempt_id")
+  attempt     Attempt  @relation(fields: [attemptId], references: [id])
+  storageKey  String   @map("storage_key")
+  payload     Json
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("proofs")
+}

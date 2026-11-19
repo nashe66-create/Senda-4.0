@@ -6,7 +6,8 @@
 **Corridor correction (2026-11-18):** Founder lock — **first wedge is UK → Zimbabwe**, not UK → Nigeria. Older pivot/spec text that names Nigeria as the first corridor is superseded for this Project; Nigeria is a later expansion only.  
 **Repo home:** [`nashe66-create/Senda-4.0`](https://github.com/nashe66-create/Senda-4.0)  
 **Stack (#9):** **LOCKED** — Next.js App Router + TypeScript + Postgres; partner API keys + school/ops auth; S3-compatible proofs; Biller beside school systems; no NN / no ERP / no PSP-core day one.  
-**Settle (#10):** **LOCKED** — `bank_usd` + school-owned `ecocash`; Paynow/ZIPIT school-local only; cash/relative wallets out of Connect; MTOs settle with Senda validate→ref→confirm.
+**Settle (#10):** **LOCKED** — `bank_usd` + school-owned `ecocash`; Paynow/ZIPIT school-local only; cash/relative wallets out of Connect; remittance partners settle with Senda validate→ref→confirm.  
+**Language:** Generic partner / biller; school fees = first wedge. UX: amount due, pay code, payment reference, confirmed / needs a check, retry key — [connect-concepts §0](product/connect-concepts.md).
 
 ---
 
@@ -18,11 +19,11 @@
 | Job | UK diaspora grouped transfers (one plan → N payouts) | Verify institution + beneficiary → instructions + ref → partner settles → recon → **proof** |
 | Money movement | Senda via Fincra/Flutterwave (collect → FX → payout) | **Partner** moves money (`mto_settles` default) |
 | Moat hope | Multi-recipient UX, ledger, fees | Neutral allowlisted Link layer + proof |
-| Surfaces | Consumer app | **Connect** (MTOs/purpose apps), **Biller** (schools), **Network** (shared density) |
+| Surfaces | Consumer app | **Connect** (remittance / purpose partners), **Biller** (organisations; first wedge schools), **Network** (shared density) |
 
-**One sentence (locked):** Senda 4.0 doesn’t win by sending money cheaper — it wins by being the layer that proves the right institution and beneficiary got paid for the right obligation.
+**One sentence (locked):** Senda 4.0 doesn’t win by sending money cheaper — it wins by being the layer that proves the right organisation and person got paid for the right amount due.
 
-**First wedge:** UK → Zimbabwe private school fees — 5–10 schools → Links → partner (or dogfood) settles with Senda ref → recon → proof → then sell the network into MTOs / Vybe-class apps. (Nigeria = later corridor expansion, not first wedge.)
+**First wedge:** UK → Zimbabwe private school fees — 5–10 schools → pay codes → partner (or test loop) settles with Senda payment reference → recon → proof → then sell the network into more remittance / purpose partners. (Nigeria = later corridor expansion, not first wedge. Medical/utilities = later billers.)
 
 ---
 
@@ -52,20 +53,20 @@ Aligned with product-spec §18 build sequence and stage operating plan. Doctrine
 - Resolve open decisions in §5 before build agents spin up
 
 ### M1 — Core domain + supply cold-start
-- Data model: Institution, SettleDestination, Beneficiary, Link, Obligation, Attempt, Instruction, Confirmation, Proof
-- Ops/admin KYB (manual OK) + verified settle destination (**ZW** pilot schools)
-- Student CSV → beneficiaries; optional `link_code` generation
-- **Exit:** 1 verified pilot school in Zimbabwe + ≥20 beneficiaries (can be seed/fixture)
+- Data model: Institution, SettleDestination, Beneficiary, Link, Obligation (amount due), Attempt (payment), Instruction, Confirmation, Proof
+- Ops/admin organisation checks (manual OK) + verified payout account (**ZW** pilot schools)
+- Roster CSV → people; optional pay code (`link_code`) generation
+- **Exit:** 1 verified pilot school in Zimbabwe + ≥20 people (can be seed/fixture)
 
 ### M2 — Instruction + reference
-- Attempt lifecycle: `created` → `instructed`
-- Issue idempotent `customer_reference` + frozen destination snapshot
-- **Exit:** validate → instructions callable (API or dogfood)
+- Payment lifecycle: `created` → `instructed`
+- Issue payment reference (`customer_reference`) + frozen payout snapshot; **retry key** safe to retry
+- **Exit:** validate → pay instructions callable (API or test loop)
 
 ### M3 — Confirmation, recon, proof
 - Ingest confirmation (`partner_webhook` / `manual_ops` / `school_mark`)
-- Recon rules (ref + amount + currency; exact match MVP) → `proven` or `needs_reconcile`
-- Proof JSON (+ optional PDF)
+- Recon rules (payment reference + amount + currency; exact match MVP) → confirmed (`proven`) or needs a check (`needs_reconcile`)
+- Payment proof JSON (+ optional PDF)
 - **Exit:** happy-path proof + one mismatch demo
 
 ### M4 — Connect surface
@@ -80,12 +81,12 @@ Aligned with product-spec §18 build sequence and stage operating plan. Doctrine
 
 ### M6 — Wedge pilot loop
 - Dogfood thin UI **if** founder keeps default (open decision #1)
-- Design-partner outreach parallel (Mukuru / Vybe-class / PayAngel-class — ZW corridor fit)
-- 5–10 **Zimbabwe** private schools; real or sandbox settle with Senda ref
+- Design-partner outreach parallel (remittance / purpose-pay class — ZW corridor fit; none named as product identity)
+- 5–10 **Zimbabwe** private schools; real or sandbox settle with Senda payment reference
 - **Exit (MVP done):** product-spec §15 acceptance checklist green (corridor = ZW); `senda_settles` still absent
 
 ### Later (after wedge)
-- Sell same network into more MTOs; medical/utilities verticals; denser Network effects  
+- Sell same network into more remittance partners; medical/utilities billers; denser Network effects  
 - **Nigeria (and other corridors)** as expansion once ZW school-fee proof works  
 - Not sequenced until first-wedge proof works
 
@@ -122,15 +123,15 @@ From product-spec §17, stage plan, and pivot-agent follow-through — **updated
 | 1 | Dogfood UI in first build? | **Yes, minimal** for cold-start (from prior spec) |
 | 2 | Payer-bound Links vs open student+school pay? | **Open student+school** first; bind payer later |
 | 3 | Pricing | **Defer**; instrument usage |
-| 4 | First named design partner (MTO / Vybe-class) for **UK → ZW**? | Outreach **parallel** to build — name preferred target if any |
+| 4 | First named design partner (remittance / purpose-pay class) for **UK → ZW**? | Outreach **parallel** to build — none required named in product |
 | 5 | Nigeria / other corridors in data-model enums only for MVP (no live NG KYB)? | **Yes** — live pilot = **ZW** only |
 | 6 | Merge Senda-4.0 [PR #1](https://github.com/nashe66-create/Senda-4.0/pull/1) now (after ZW wording fix)? | **Done** (durable docs on main) |
 | 7 | Port full docs pack into Senda-4.0? | **Yes** — research + product pack under `docs/senda-4.0/` |
 | 8 | Preferred path layout | **Locked:** `docs/senda-4.0/…` |
 | 9 | Tech stack for Connect/Biller MVP? | **LOCKED:** Next.js App Router + TypeScript + Postgres; partner API keys + school/ops auth; S3-compatible proofs; Biller beside school systems; no NN / no ERP / no PSP-core day one |
-| 10 | Settle methods for ZW pilot (bank transfer, EcoCash/mobile money till, both)? | **LOCKED:** `bank_usd` + school-owned `ecocash`; Paynow/ZIPIT school-local only; cash/relative wallets out of Connect; model = KYB → validate → instruct (frozen dest + ref) → MTO confirm → proof |
+| 10 | Settle methods for ZW pilot (bank transfer, EcoCash/mobile money till, both)? | **LOCKED:** `bank_usd` + school-owned `ecocash`; Paynow/ZIPIT school-local only; cash/relative wallets out of Connect; model = KYB → validate → instruct (frozen dest + ref) → partner confirm → proof |
 
-**Stage kill criteria** (from stage plan — stop/reframe if true): every MTO insists Senda also moves money *and* that forces full remittance licensing day-one; ZW schools refuse KYB/settle details; proof-without-adaptor-as-payer rejected by every design partner.
+**Stage kill criteria** (from stage plan — stop/reframe if true): every remittance partner insists Senda also moves money *and* that forces full remittance licensing day-one; ZW schools refuse KYB/settle details; proof-without-adaptor-as-payer rejected by every design partner.
 
 ---
 
@@ -147,7 +148,7 @@ Explicitly **not** this Project’s near-term build (pivot + product-spec non-go
 - Full dispute legal playbooks, multi-PSP routing engine, SPI/API licensing ops
 - Consumer growth loops; “agent for every company function”
 - Shipping production Agent SDK bots for KYB/recon before processes + data model exist
-- Catalog billers (airtime/DSTV/etc.) and health/rent verticals before school-fee proof works
+- Catalog billers (airtime/DSTV/etc.) and health/rent verticals before the first-wedge (school-fee) proof works
 
 ---
 

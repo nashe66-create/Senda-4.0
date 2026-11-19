@@ -2,7 +2,7 @@
 
 ## Mission
 
-Walk dogfood scenarios DF-01..DF-05. Confirm a **minimal** dogfood surface can run validate→instruct→confirm→proof **without** a live MTO, without becoming `senda_settles`, and without a consumer remittance UI.
+Walk dogfood scenarios DF-01..DF-05. Confirm a **minimal** test-loop surface can run validate→instruct→test confirmation→proof **without** a live remittance partner, without becoming `senda_settles`, and without a consumer remittance UI. Test confirmation ≠ organisation received money.
 
 ## Inputs
 

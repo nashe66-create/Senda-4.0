@@ -14,7 +14,7 @@ Legend for **expect outcome**: `allow` | `reject` | `proven` | `needs_reconcile`
 
 | ID | Type | Setup | Action | Expect | Pass if |
 | --- | --- | --- | --- | --- | --- |
-| DF-01 | happy | Verified ZW school, open Link, open Obligation | Ops runs dogfood validate→instruct→confirm→proof with **no** live MTO | allow → proven | Full loop completes; proof JSON available |
+| DF-01 | happy | Verified ZW school, open Link, open Obligation | Ops runs test loop validate→instruct→confirm→proof with **no** live remittance partner | allow → confirmed (proven) | Full loop completes; proof JSON available |
 | DF-02 | edge | Same as DF-01 | Dogfood Attempt uses same domain objects as Connect | policy_ok | Attempt/Instruction/Confirmation/Proof share Connect schema |
 | DF-03 | policy | Product surfaces inventory | Inspect dogfood scope | policy_ok | Thin UI only: instruct/confirm/proof — no consumer remittance rates/FX UI |
 | DF-04 | abuse | Dogfood session | Attempt to make Senda collect/FX/payout (`senda_settles`) via dogfood | reject | Dogfood cannot become adaptor-as-payer |
@@ -54,8 +54,8 @@ Legend for **expect outcome**: `allow` | `reject` | `proven` | `needs_reconcile`
 | ID | Type | Setup | Action | Expect | Pass if |
 | --- | --- | --- | --- | --- | --- |
 | DP-01 | policy | No named MTO | Continue M1–M3 build | allow | Build not gated on named partner |
-| DP-02 | happy | Dogfood + sandbox key | Run happy path without live Mukuru | allow | Cold-start works |
-| DP-03 | ops | Outreach tracker | Parallel shortlist Mukuru/Remitly/WR/Vybe-class | policy_ok | Outreach tracked separately; none required named |
+| DP-02 | happy | Dogfood + sandbox key | Run happy path without a live remittance partner | allow | Cold-start works |
+| DP-03 | ops | Outreach tracker | Parallel shortlist remittance / purpose-pay class partners | policy_ok | Outreach tracked separately; none required named |
 
 ---
 
@@ -157,9 +157,9 @@ Legend for **expect outcome**: `allow` | `reject` | `proven` | `needs_reconcile`
 | RC-06 | dispute | **False confirm** (partner posts paid) | Confirm without real credit | needs_reconcile when school disputes | Must not silent-proven forever |
 | RC-07 | dispute | **School unpaid** after partner confirm | School marks unpaid / dispute | needs_reconcile | Dispute path exists |
 | RC-08 | dispute | Settled to **wrong destination** | Confirm / school report | needs_reconcile | Destination check or dispute |
-| RC-09 | edge | Duplicate confirm same partner_payment_id | Confirm again | idempotent proven | No double-proof side effects |
+| RC-09 | edge | Duplicate confirm same partner_payment_id | Confirm again | safe retry → confirmed (proven) | No double-proof side effects |
 | RC-10 | edge | Partial amount paid | Confirm partial | needs_reconcile (MVP exact match) | Exact match MVP |
-| RC-11 | edge | Idempotent instruct same key | Instructions twice | same attempt/ref | Idempotency |
+| RC-11 | edge | Safe-retry instruct same retry key | Instructions twice | same attempt/ref | Safe retry (retry key) |
 | RC-12 | abuse | Same idempotency_key, different amount | Instruct | reject | Key conflict |
 | RC-13 | happy | Proven Attempt | Fetch Proof JSON (partner + Biller) | allow | Shared proof artifact |
 | RC-14 | edge | needs_reconcile Attempt | Request Proof as proven | reject | Proof only when proven |

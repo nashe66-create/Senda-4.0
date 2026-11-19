@@ -12,7 +12,7 @@ Practical, re-runnable **docs + fixtures + agent briefs** that exercise every lo
 | [coverage-map.md](coverage-map.md) | Lock → scenario coverage; gaps called out |
 | [cases/](cases/) | Structured YAML cases (`id`, locks, steps, expect) |
 | [agents/](agents/) | Test-agent briefs + how to run them |
-| [fixtures/](fixtures/) | Shared Institution / Link / Obligation / Partner fixtures |
+| [fixtures/](fixtures/) | Shared organisation / pay code / amount due / partner fixtures (system: Institution / Link / Obligation) |
 | [scripts/validate_pack.py](scripts/validate_pack.py) | Lint cases, print coverage, dry-run agent briefs |
 
 ## Locks under test
@@ -27,10 +27,10 @@ Practical, re-runnable **docs + fixtures + agent briefs** that exercise every lo
 | #6–#8 | Docs on main; pack ported; path `docs/senda-4.0/` |
 | #9 | Next.js App Router + TypeScript + Postgres; partner API keys + school/ops auth; S3 proofs; no NN/ERP/PSP-core day one |
 | #10 | `bank_usd` + school-owned `ecocash`; reject cash/relative; Paynow/ZIPIT local-only; validate→ref→confirm→proof |
-| Wedge | UK → ZW private school fees first |
-| Freshness | Fee templates → bulk Obligations; fetch-at-pay; CSV onboarding only |
+| Wedge | UK → ZW private school fees first (other billers later) |
+| Freshness | Fee templates → bulk amounts due; fetch-at-pay; CSV onboarding only |
 | Scope | Abroad UK→ZW first; local payers deferred |
-| Disputes | MTO fails-to-deliver / false-confirm / school unpaid → `needs_reconcile` |
+| Disputes | Partner fails-to-deliver / false-confirm / organisation unpaid → needs a check (`needs_reconcile`) |
 
 ## How to run
 
@@ -61,10 +61,11 @@ When Connect sandbox exists, map each case’s `steps` to HTTP calls (`validate`
 
 ## Counts
 
-Run `validate_pack.py` for the live count. The catalog targets **70+** scenarios across domain objects: Link, Obligation, Attempt, Instruction, Confirmation, Proof, SettleDestination, plus surface locks (Dogfood, Docs, Stack, Pricing, Outreach, Corridor).
+Run `validate_pack.py` for the live count. The catalog targets **70+** scenarios across domain objects: Link (pay code), Obligation (amount due), Attempt (payment), Instruction, Confirmation, Proof, SettleDestination (payout account), plus surface locks (Dogfood, Docs, Stack, Pricing, Outreach, Corridor).
 
 ## Related product docs
 
+- [Connect concepts — wording map](../product/connect-concepts.md)
 - [How it works](../product/how-it-works.md)
 - [Lock brief](../research/lock-brief.md)
 - [Rails & stack](../research/rails-and-stack.md)

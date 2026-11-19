@@ -2,7 +2,7 @@
 
 ## Mission
 
-Live pilot is **ZW only**. Other corridors are enums-only. First wedge is UK → ZW **private school fees**.
+Live pilot is **ZW only**. Other corridors are enums-only. First wedge is UK → ZW **private school fees** (first biller type — not the only biller).
 
 ## Cases
 

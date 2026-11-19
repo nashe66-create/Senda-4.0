@@ -2,7 +2,7 @@
 
 ## Mission
 
-Fee templates → bulk Obligations; fetch-at-pay; CSV = onboarding only; local ZW payers deferred.
+Fee templates → bulk amounts due (Obligations); fetch-at-pay; CSV = onboarding only; local ZW payers deferred.
 
 ## Cases
 

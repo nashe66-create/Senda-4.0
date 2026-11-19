@@ -2,7 +2,7 @@
 
 ## Mission
 
-Pilot Connect destinations = `bank_usd` + school-owned `ecocash`. Reject cash, relative wallets, Paynow/ZIPIT as Connect destinations. Model = validate → unique ref + frozen destination → MTO confirm → proof. Partner-capability aware.
+Pilot Connect destinations = `bank_usd` + school-owned `ecocash`. Reject cash, relative wallets, Paynow/ZIPIT as Connect destinations. Model = validate → unique payment reference + frozen payout → partner confirm → payment proof. Partner-capability aware.
 
 ## Cases
 

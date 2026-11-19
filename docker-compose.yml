@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: senda40-postgres
+    environment:
+      POSTGRES_USER: senda
+      POSTGRES_PASSWORD: senda
+      POSTGRES_DB: senda
+    ports:
+      - "5432:5432"
+    volumes:
+      - senda40_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U senda -d senda"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  senda40_pgdata:
