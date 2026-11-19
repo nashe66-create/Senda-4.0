@@ -18,8 +18,6 @@ set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:3000}"
 API_KEY="${SANDBOX_API_KEY:-sk_sandbox_partner_demo}"
-LINK_CODE="${LINK_CODE:-HDA-ADA-001}"
-OBLIGATION_ID="${OBLIGATION_ID:-obl_001}"
 AMOUNT="${AMOUNT:-850.00}"
 DESTINATION_TYPE="${DESTINATION_TYPE:-bank_usd}"
 MISMATCH=0
@@ -33,6 +31,16 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+# Defaults: Ada for happy path; Ben for mismatch so a prior happy run on Ada still works.
+# Override with LINK_CODE / OBLIGATION_ID. Bill must still be open.
+if [[ $MISMATCH -eq 1 ]]; then
+  LINK_CODE="${LINK_CODE:-HDA-BEN-002}"
+  OBLIGATION_ID="${OBLIGATION_ID:-obl_002}"
+else
+  LINK_CODE="${LINK_CODE:-HDA-ADA-001}"
+  OBLIGATION_ID="${OBLIGATION_ID:-obl_001}"
+fi
 
 AUTH="Authorization: Bearer ${API_KEY}"
 RETRY_KEY="pilot-script-$(date +%s)"

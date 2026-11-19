@@ -44,9 +44,11 @@ From repo root (app running on `:3000`):
 
 ```bash
 bash docs/senda-4.0/product/scripts/pilot-loop.sh
-# mismatch demo:
+# mismatch demo (defaults to Ben / obl_002 so Ada can stay confirmed):
 bash docs/senda-4.0/product/scripts/pilot-loop.sh --mismatch
 ```
+
+Bills must still be **open**. After a happy confirm, that amount due is no longer payable — re-seed (`npm run db:seed`) or pick another bill (`LINK_CODE` / `OBLIGATION_ID`).
 
 Then open `/biller` (login above) and find the new payment.
 
