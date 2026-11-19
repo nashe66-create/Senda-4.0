@@ -22,6 +22,7 @@ Canonical documentation for the Senda 4.0 purpose-settlement wedge lives under `
 - [Connect concepts](product/connect-concepts.md) — plain-language + pseudocode model (lookup, pay code, amount due, validate/instruct/confirm, proof)
 - [Connect partner sandbox](product/connect-partner-sandbox.md) — partner-facing auth, retry key, confirm contract, curl examples
 - [Pilot runbook](product/pilot-runbook.md) — M6 wedge loop: onboarding, happy path, needs-a-check, proof handoff (`/pilot` + curl script)
+- [Onboarding + dues scenarios](product/onboarding-dues-scenarios.md) — founder lock: who onboards, thin biller, fee templates, stale/local-pay race
 - [Pivot](pivot.md) — 3.0 → 4.0 narrative
 - [Work plan](work-plan.md) — milestones M0–M6 + backlog
 - [Project context](context/project-context.md) — short orientation
