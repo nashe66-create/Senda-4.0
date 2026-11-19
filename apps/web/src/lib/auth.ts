@@ -36,7 +36,8 @@ export async function requirePartner(request: Request): Promise<
       status: 401,
       error: {
         code: "unauthorized",
-        message: "Missing partner API key (Authorization: Bearer <key>)",
+        message:
+          "Partner API key required. Send Authorization: Bearer <key> (or X-Api-Key).",
       },
     };
   }
@@ -50,7 +51,11 @@ export async function requirePartner(request: Request): Promise<
     return {
       ok: false,
       status: 401,
-      error: { code: "unauthorized", message: "Invalid partner API key" },
+      error: {
+        code: "unauthorized",
+        message:
+          "Partner API key not recognized. Check the key from your sandbox setup and try again.",
+      },
     };
   }
 

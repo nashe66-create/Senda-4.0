@@ -31,8 +31,11 @@ async function main() {
   await prisma.partner.deleteMany();
 
   // Fixture ids keep historical names for YAML compatibility; display names are generic.
+  // Primary demo key is generic; legacy SANDBOX_API_KEY_MUKURU still accepted as override.
   const demoPartnerKey =
-    process.env.SANDBOX_API_KEY_MUKURU || "sk_sandbox_mukuru_demo";
+    process.env.SANDBOX_API_KEY ||
+    process.env.SANDBOX_API_KEY_MUKURU ||
+    "sk_sandbox_partner_demo";
   const bankOnlyKey =
     process.env.SANDBOX_API_KEY_BANK_ONLY || "sk_sandbox_bank_only";
   const noZwKey = process.env.SANDBOX_API_KEY_NO_ZW || "sk_sandbox_no_zw";
@@ -40,6 +43,7 @@ async function main() {
   await prisma.partner.createMany({
     data: [
       {
+        // partner_mukuru_sbx kept as fixture id (dogfood + YAML); not a product brand.
         partnerId: "partner_mukuru_sbx",
         name: "Demo remittance partner",
         apiKeyHash: hashApiKey(demoPartnerKey),

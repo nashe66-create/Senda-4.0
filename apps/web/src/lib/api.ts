@@ -6,6 +6,10 @@ export function jsonOk<T>(data: T, status = 200) {
   return NextResponse.json(data, { status });
 }
 
+/**
+ * Stable partner-facing error envelope:
+ * `{ "error": { "code": "...", "message": "plain language..." } }`
+ */
 export function jsonError(
   code: string,
   message: string,
@@ -20,7 +24,7 @@ export function jsonError(
 
 export function handleRouteError(err: unknown) {
   if (err instanceof ConnectError) {
-    return jsonError(err.code, err.message, err.status);
+    return jsonError(err.code, err.message, err.status, err.extra);
   }
   if (err instanceof ZodError) {
     return jsonError(
@@ -30,5 +34,9 @@ export function handleRouteError(err: unknown) {
     );
   }
   console.error(err);
-  return jsonError("internal_error", "Unexpected server error", 500);
+  return jsonError(
+    "internal_error",
+    "Something went wrong on our side. Safe to retry with the same retry key if you were creating pay instructions.",
+    500,
+  );
 }

@@ -27,16 +27,20 @@ export type ConnectErrorCode =
   | "corridor_not_supported"
   | "amount_mismatch"
   | "idempotency_conflict"
+  | "retry_key_conflict"
   | "attempt_not_found"
   | "already_confirmed"
+  | "confirm_conflict"
   | "reference_mismatch"
-  | "validation_error";
+  | "validation_error"
+  | "unauthorized";
 
 export class ConnectError extends Error {
   constructor(
     public code: ConnectErrorCode,
     message: string,
     public status = 400,
+    public extra?: Record<string, unknown>,
   ) {
     super(message);
     this.name = "ConnectError";
@@ -279,11 +283,39 @@ export async function validatePayment(input: {
   };
 }
 
+function instructResponse(
+  attempt: {
+    id: string;
+    status: string;
+    instruction: {
+      customerReference: string;
+      frozenDestination: Prisma.JsonValue;
+      amount: Prisma.Decimal;
+      currency: string;
+    };
+  },
+  replayed: boolean,
+) {
+  return {
+    attempt_id: attempt.id,
+    customer_reference: attempt.instruction.customerReference,
+    destination: attempt.instruction.frozenDestination,
+    amount: attempt.instruction.amount.toFixed(2),
+    currency: attempt.instruction.currency,
+    status: attempt.status,
+    /** Same retry key returned the existing pay instructions — not a new payment. */
+    replayed,
+    /** @deprecated Prefer `replayed`. Kept for older dogfood clients. */
+    idempotent_replay: replayed,
+  };
+}
+
 export async function instructPayment(input: {
   partner: Partner;
   linkCode: string;
   obligationId: string;
   amount: string | number;
+  /** System name for retry key (partner field: retry_key). */
   idempotencyKey: string;
   destinationType?: SettleDestinationType;
   payerHint?: string;
@@ -294,27 +326,34 @@ export async function instructPayment(input: {
   });
 
   if (existing) {
-    if (
-      existing.link.linkCode !== input.linkCode ||
-      (existing.obligation.externalId !== input.obligationId &&
-        existing.obligationId !== input.obligationId)
-    ) {
+    const sameLink = existing.link.linkCode === input.linkCode;
+    const sameObligation =
+      existing.obligation.externalId === input.obligationId ||
+      existing.obligationId === input.obligationId;
+    const requestedAmount = new Prisma.Decimal(input.amount);
+    const sameAmount = existing.amount.equals(requestedAmount);
+
+    if (!sameLink || !sameObligation || !sameAmount) {
       throw new ConnectError(
-        "idempotency_conflict",
-        "Idempotency key already used for a different obligation/link",
+        "retry_key_conflict",
+        "This retry key was already used for a different pay code, amount due, or amount. Use a new retry key for a new payment.",
         409,
+        {
+          // System alias kept for scenario pack / older clients
+          code_alias: "idempotency_conflict",
+          safe_to_retry: false,
+        },
       );
     }
     if (existing.instruction) {
-      return {
-        attempt_id: existing.id,
-        customer_reference: existing.instruction.customerReference,
-        destination: existing.instruction.frozenDestination,
-        amount: existing.instruction.amount.toFixed(2),
-        currency: existing.instruction.currency,
-        status: existing.status,
-        idempotent_replay: true,
-      };
+      return instructResponse(
+        {
+          id: existing.id,
+          status: existing.status,
+          instruction: existing.instruction,
+        },
+        true,
+      );
     }
   }
 
@@ -367,17 +406,64 @@ export async function instructPayment(input: {
     });
   });
 
+  return instructResponse(
+    {
+      id: attempt.id,
+      status: attempt.status,
+      instruction: attempt.instruction!,
+    },
+    false,
+  );
+}
+
+function confirmResponse(input: {
+  attemptId: string;
+  status: string;
+  reconResult: string;
+  reconNotes: string | null;
+  proofId: string | null;
+  storageKey: string | null;
+  instructedAmount: string;
+  instructedCurrency: string;
+  confirmedAmount: string;
+  confirmedCurrency: string;
+  customerReference: string;
+  partnerPaymentId?: string | null;
+  settledAt?: string | null;
+  replayed: boolean;
+}) {
   return {
-    attempt_id: attempt.id,
-    customer_reference: attempt.instruction!.customerReference,
-    destination: attempt.instruction!.frozenDestination,
-    amount: attempt.instruction!.amount.toFixed(2),
-    currency: attempt.instruction!.currency,
-    status: attempt.status,
-    idempotent_replay: false,
+    attempt_id: input.attemptId,
+    status: input.status,
+    recon_result: input.reconResult,
+    recon_notes: input.reconNotes,
+    proof_id: input.proofId,
+    storage_key: input.storageKey,
+    proof_issued: Boolean(input.proofId),
+    customer_reference: input.customerReference,
+    partner_payment_id: input.partnerPaymentId ?? null,
+    settled_at: input.settledAt ?? null,
+    instructed: {
+      amount: input.instructedAmount,
+      currency: input.instructedCurrency,
+    },
+    confirmed: {
+      amount: input.confirmedAmount,
+      currency: input.confirmedCurrency,
+    },
+    /** Same confirm payload returned existing outcome — safe to retry. */
+    replayed: input.replayed,
+    /** @deprecated Prefer `replayed`. */
+    idempotent_replay: input.replayed,
   };
 }
 
+/**
+ * Partner → Senda confirm callback.
+ * Contract: compare payment reference + amount + currency to pay instructions.
+ * Exact match → confirmed (`proven`) + payment proof.
+ * Any mismatch → `needs_reconcile` (needs a check); no trusted proof issued.
+ */
 export async function confirmPayment(input: {
   partner: Partner;
   attemptId: string;
@@ -403,7 +489,7 @@ export async function confirmPayment(input: {
   if (!attempt || !attempt.instruction) {
     throw new ConnectError(
       "attempt_not_found",
-      `Attempt '${input.attemptId}' not found or not instructed`,
+      `Payment '${input.attemptId}' not found or not yet instructed`,
       404,
     );
   }
@@ -417,12 +503,12 @@ export async function confirmPayment(input: {
   ) {
     throw new ConnectError(
       "attempt_not_found",
-      "Attempt does not belong to this partner",
+      "Payment not found for this partner API key",
       404,
     );
   }
 
-  // Idempotent replay — proven attempts have proof; needs_reconcile has none
+  // Safe replay — same confirm callback after success (or needs-a-check)
   if (attempt.confirmation) {
     if (
       attempt.confirmation.reconResult === "proven" &&
@@ -430,49 +516,79 @@ export async function confirmPayment(input: {
     ) {
       throw new ConnectError(
         "already_confirmed",
-        "Attempt already confirmed but proof missing — contact ops",
+        "This payment is already confirmed but the payment proof is missing — contact ops.",
         409,
       );
     }
-    return {
-      attempt_id: attempt.id,
-      status: attempt.status,
-      recon_result: attempt.confirmation.reconResult,
-      recon_notes: attempt.confirmation.reconNotes,
-      proof_id: attempt.proof?.id ?? null,
-      storage_key: attempt.proof?.storageKey ?? null,
-      proof_issued: Boolean(attempt.proof),
-      instructed: {
-        amount: instruction.amount.toFixed(2),
-        currency: instruction.currency,
-      },
-      confirmed: {
-        amount: attempt.confirmation.amount.toFixed(2),
-        currency: attempt.confirmation.currency,
-      },
-      idempotent_replay: true,
-    };
-  }
 
-  if (instruction.customerReference !== input.customerReference) {
-    throw new ConnectError(
-      "reference_mismatch",
-      "customer_reference does not match instruction",
-    );
+    const confirmedAmount = new Prisma.Decimal(input.amount);
+    const sameReference =
+      attempt.confirmation.customerReference === input.customerReference;
+    const sameAmount = attempt.confirmation.amount.equals(confirmedAmount);
+    const sameCurrency =
+      attempt.confirmation.currency.toUpperCase() ===
+      input.currency.toUpperCase();
+    const samePartnerPayment =
+      !input.partnerPaymentId ||
+      !attempt.confirmation.partnerPaymentId ||
+      attempt.confirmation.partnerPaymentId === input.partnerPaymentId;
+
+    if (!sameReference || !sameAmount || !sameCurrency || !samePartnerPayment) {
+      throw new ConnectError(
+        "confirm_conflict",
+        "This payment was already confirmed with different details. Do not send a second confirmation with a new amount or reference — contact ops if you need a correction.",
+        409,
+        { safe_to_retry: false },
+      );
+    }
+
+    return confirmResponse({
+      attemptId: attempt.id,
+      status: attempt.status,
+      reconResult: attempt.confirmation.reconResult,
+      reconNotes: attempt.confirmation.reconNotes,
+      proofId: attempt.proof?.id ?? null,
+      storageKey: attempt.proof?.storageKey ?? null,
+      instructedAmount: instruction.amount.toFixed(2),
+      instructedCurrency: instruction.currency,
+      confirmedAmount: attempt.confirmation.amount.toFixed(2),
+      confirmedCurrency: attempt.confirmation.currency,
+      customerReference: attempt.confirmation.customerReference,
+      partnerPaymentId: attempt.confirmation.partnerPaymentId,
+      settledAt: attempt.confirmation.settledAt.toISOString(),
+      replayed: true,
+    });
   }
 
   const confirmedAmount = new Prisma.Decimal(input.amount);
+  const referenceOk =
+    instruction.customerReference === input.customerReference;
   const amountOk = confirmedAmount.equals(instruction.amount);
   const currencyOk =
     input.currency.toUpperCase() === instruction.currency.toUpperCase();
 
+  // Payment reference + amount + currency must all match for trusted proof.
+  // Any mismatch → needs a check (needs_reconcile); still record the confirmation.
+  const mismatches: string[] = [];
+  if (!referenceOk) {
+    mismatches.push(
+      `Payment reference mismatch: instructed ${instruction.customerReference} vs confirmed ${input.customerReference}`,
+    );
+  }
+  if (!amountOk) {
+    mismatches.push(
+      `Amount mismatch: instructed ${instruction.amount} vs confirmed ${confirmedAmount}`,
+    );
+  }
+  if (!currencyOk) {
+    mismatches.push(
+      `Currency mismatch: instructed ${instruction.currency} vs confirmed ${input.currency}`,
+    );
+  }
+
   const reconResult =
-    amountOk && currencyOk ? "proven" : "needs_reconcile";
-  const reconNotes = !amountOk
-    ? `Amount mismatch: instructed ${instruction.amount} vs confirmed ${confirmedAmount}`
-    : !currencyOk
-      ? `Currency mismatch: instructed ${instruction.currency} vs confirmed ${input.currency}`
-      : null;
+    mismatches.length === 0 ? "proven" : "needs_reconcile";
+  const reconNotes = mismatches.length ? mismatches.join("; ") : null;
 
   const settledAt = input.settledAt
     ? new Date(input.settledAt)
@@ -508,7 +624,7 @@ export async function confirmPayment(input: {
       data: { status: obligationStatus },
     });
 
-    // Trusted senda.proof.v1 only when amount + currency match.
+    // Trusted senda.proof.v1 only when reference + amount + currency match.
     // Mismatch → needs a check; no payment proof issued for the organisation.
     if (reconResult !== "proven") {
       return { confirmation, proof: null, attemptStatus };
@@ -565,22 +681,20 @@ export async function confirmPayment(input: {
     return { confirmation, proof, attemptStatus };
   });
 
-  return {
-    attempt_id: attempt.id,
+  return confirmResponse({
+    attemptId: attempt.id,
     status: result.attemptStatus,
-    recon_result: reconResult,
-    recon_notes: reconNotes,
-    proof_id: result.proof?.id ?? null,
-    storage_key: result.proof?.storageKey ?? null,
-    proof_issued: Boolean(result.proof),
-    instructed: {
-      amount: instruction.amount.toFixed(2),
-      currency: instruction.currency,
-    },
-    confirmed: {
-      amount: confirmedAmount.toFixed(2),
-      currency: input.currency.toUpperCase(),
-    },
-    idempotent_replay: false,
-  };
+    reconResult,
+    reconNotes,
+    proofId: result.proof?.id ?? null,
+    storageKey: result.proof?.storageKey ?? null,
+    instructedAmount: instruction.amount.toFixed(2),
+    instructedCurrency: instruction.currency,
+    confirmedAmount: confirmedAmount.toFixed(2),
+    confirmedCurrency: input.currency.toUpperCase(),
+    customerReference: input.customerReference,
+    partnerPaymentId: input.partnerPaymentId,
+    settledAt: settledAt.toISOString(),
+    replayed: false,
+  });
 }
