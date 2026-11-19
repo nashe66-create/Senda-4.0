@@ -1,275 +1,289 @@
-# Senda Connect + Biller — conceptual / pseudocode model
+# Connect + Biller — how the pieces work (plain language + pseudocode)
 
-**Status:** Working concept draft aligned to locked prefs + M1 scaffold (`apps/web`, PR #8 / `cursor/scaffold-mvp-app-3a57`).  
-**Audience:** Product + engineering (nashe).  
-**Doctrine:** Partners move money (`mto_settles`); Senda owns Links, refs, validation, recon, and proof.  
-**Corridor:** UK → ZW private school fees (live). Other corridors are enums-only.
+**Status:** Working draft. Aligned to locked product decisions and the M1 app scaffold (PR #8).  
+**Audience:** Product + engineering.  
+**Core idea:** A **partner** moves the money. Senda checks that the pay is allowed, tells them where to send it and which reference to use, then records whether that pay can be trusted as proven.
 
-This doc is **conceptual + pseudocode**, not a frozen OpenAPI contract. Field names match the M1 scaffold where that code already exists.
+**First live wedge (example, not the product limit):** UK → Zimbabwe **school fees**. The same pattern is meant for other billers later (medical, funeral, utilities, …).  
+**Partners:** Any remittance / purpose-pay partner on Connect — not one named brand. Named partners in fixtures are demos only.
 
----
-
-## 1. Domain chain (one sentence each)
-
-| Object | Meaning |
-| --- | --- |
-| **Institution** | School on Biller; KYB + `liveConnect` gate Connect. |
-| **SettleDestination** | School’s real bank USD / school-owned EcoCash (not a Senda wallet). |
-| **Beneficiary** | Student at that school (`student_ref`). |
-| **Link** | Open binding student↔school; public `link_code`. |
-| **Obligation** | Amount locked for a term/due; fees-due ledger row. |
-| **Attempt** | One partner try to pay an Obligation (idempotent). |
-| **Instruction** | Frozen destination + unique `customer_reference`. |
-| **Confirmation** | Partner (or stub) attestation of settle. |
-| **Proof** | Durable artifact of instruct + confirm + recon. |
-
-```
-Institution → SettleDestination
-           → Beneficiary → Link → Obligation
-                                    ↓
-                         Attempt → Instruction → Confirmation → Proof
-```
+This is a **concept + pseudocode** note, not a frozen API contract. Where the M1 code already has field names, those appear in backticks as *system* names.
 
 ---
 
-## 2. Mukuru UX lookup → `link_code` + Obligation
+## 0. Language we use with people
+
+Two layers of wording:
+
+| Layer | Who sees it | Rule |
+| --- | --- | --- |
+| **User words** | Payers in a partner app; bursars / ops in Biller; dogfood UI | Everyday English. No jargon unless we immediately explain it. |
+| **System words** | API fields, DB, logs, this pseudocode | Stable identifiers. Can stay technical if the UI never shows them raw. |
+
+If a system word would show on a screen, either rename it for display or pair it with a plain label.
+
+### Suggested wording map
+
+| System name (today) | Say this to users | Why |
+| --- | --- | --- |
+| Institution | **Organisation** or **biller** (or “school” only when it *is* a school) | “Institution” is cold; school is only the first biller type. |
+| Beneficiary | **Who it’s for** — e.g. student, patient, member | Role depends on biller type. |
+| Link / `link_code` | **Pay code** | Short, copyable, partner-friendly. |
+| Obligation | **Amount due** / **bill** / **what’s owed** | “Obligation” is accurate legally but opaque in a pay UI. Prefer “amount due” in copy; keep or rename the system object later. |
+| Attempt | **Payment** (or “this pay try”) | Users don’t need “attempt.” |
+| Instruction | **Pay instructions** (where to send + reference) | Clear job. |
+| `customer_reference` | **Payment reference** | What the partner puts on the transfer. |
+| Confirmation | **Partner confirmation** (“they say they paid”) | Honest about trust level. |
+| Proof | **Payment proof** / **receipt for the organisation** | Shared artifact. |
+| SettleDestination | **Payout account** / **where the money goes** | Bank or school-owned wallet — not a Senda wallet. |
+| KYB | **Organisation checks** (verified to go live) | Expand once; then “verified organisation” is enough. |
+| `idempotency_key` | **Retry key** — “same request won’t create a second payment” | Never show “idempotent” in UI. |
+| `proven` | **Confirmed** | Positive outcome after checks. |
+| `needs_reconcile` | **Needs a check** | Ops/partner must look. |
+| `dogfood_stub` | **Test confirmation** (not real bank proof) | Must never read as “school received money.” |
+| `stale` (on amount due) | **Out of date — refresh before paying** | Actionable. |
+
+### Open product call (nashe)
+
+**Is “Obligation” the right *system* name?**  
+Conceptually it means: a locked, allowlisted **amount due** for a specific person at a specific organisation. Strong alternatives for a later rename: `Due`, `Bill`, `AmountDue`. Until renamed, docs and UI should prefer **amount due** / **bill** in human text, and treat `Obligation` as the internal label.
+
+**“Idempotent”** stays an engineering word only. Product/API docs for partners can say: *safe to retry with the same retry key*.
+
+---
+
+## 1. The chain (one sentence each)
+
+| Piece | Plain meaning | System name |
+| --- | --- | --- |
+| Organisation on Senda | Verified biller that can receive Connect pays | Institution |
+| Payout account | Their real bank / school-owned wallet | SettleDestination |
+| Who it’s for | Person the bill belongs to (student, …) | Beneficiary |
+| Pay code | Open bind of person ↔ organisation | Link + `link_code` |
+| Amount due | Locked amount for a period / label | Obligation |
+| Payment | One partner try to settle that amount due | Attempt |
+| Pay instructions | Frozen payout details + payment reference | Instruction |
+| Partner confirmation | Partner attests they settled | Confirmation |
+| Payment proof | Saved record of instructions + confirmation + outcome | Proof |
+
+```
+Organisation → Payout account
+            → Who it’s for → Pay code → Amount due
+                                          ↓
+                    Payment → Pay instructions → Partner confirmation → Payment proof
+```
+
+First wedge reads as: school → school bank/EcoCash → student → pay code → school-fee bill → …  
+Same shapes should work for other billers without renaming the whole product.
+
+---
+
+## 2. Lookup (partner UX) → pay code + amount due
 
 ### Purpose
 
-Let the payer (in Mukuru UI) pick a school + student and lock the amount to pay **without** inventing dues. Lookup resolves into Connect inputs: `link_code` + open `obligation_id` (amount locked on the Obligation).
+In the **partner’s** app, the payer finds the right organisation + person and sees **what’s owed**. That resolves to Connect inputs: a **pay code** and an open **amount due** (amount already locked).
 
 ### Plain English
 
-Mukuru owns search UX. Senda already holds the allowlisted school, students, Links, and Obligations. Lookup is “find what Senda already knows,” not a live ERP pull in M1.
+The partner owns search and screens. Senda already holds the allowlisted organisations, people, pay codes, and amounts due. Lookup means “find what Senda already knows,” not inventing a bill at pay time (and not a live ERP pull in M1).
 
-### Inputs (partner / UX)
+### Example (school fees — first wedge only)
+
+Payer picks a school + student → gets pay code `HDA-ADA-001` and amount due `obl_001` at **850.00 USD**.
+
+### Inputs (conceptual)
 
 ```
 lookup_query:
-  school_hint: string | school_id     # name search or known id
-  student_hint: string                 # name and/or student_ref
-  # optional: term / due_label filter
+  organisation_hint: string | id     # name or known id
+  person_hint: string                # name and/or their ref at the biller
+  # optional: period / due label
 ```
 
 ### Checks / rules
 
 ```
 PSEUDO lookup:
-  schools = institutions WHERE country=ZW AND kybStatus=verified AND liveConnect=true
-  match school by hint
-  students = beneficiaries WHERE institution=school AND active
-  match student by name / student_ref
-  link = Link WHERE institution+beneficiary AND active AND binding=open_student_school
-  obligations = Obligation WHERE same institution+beneficiary
-                AND status IN (open, instructed)  # instructed = already mid-flight
-                AND stale=false
-  IF no link → cannot pay
-  IF no open obligation → cannot instruct (dues missing)
-  RETURN link_code, obligation summaries (amount locked on each row)
+  orgs = organisations WHERE country is live pilot
+                 AND organisation checks = verified
+                 AND live on Connect
+  match organisation by hint
+  people = who-it’s-for WHERE organisation matches AND active
+  match person by name / their ref
+  pay_code = Link for that organisation + person (active, open binding)
+  amounts_due = open (or mid-flight) amounts for that pair, not marked out-of-date
+  IF no pay code → cannot pay
+  IF no open amount due → cannot issue pay instructions
+  RETURN pay_code + amount-due summaries (amount locked on each row)
 ```
 
-### Outputs
+### Outputs (shape)
 
 ```
 {
-  institution: { id, name, country },
-  beneficiary: { id, name, student_ref },
-  link_code: "HDA-ADA-001",
-  obligations: [
-    { id: "obl_001", amount: "850.00", currency: "USD", due_label, status }
+  organisation: { id, name, country },
+  person: { id, name, their_ref },
+  link_code: "…",                 # pay code
+  obligations: [                  # amounts due (system name)
+    { id, amount, currency, due_label, status }
   ]
 }
 ```
 
-Amount is **locked on the Obligation**. Validate/instruct may optionally re-check a requested amount against that lock (`amount_mismatch` if different).
+### Failures (user-friendly meaning)
 
-### Failure codes (conceptual)
-
-| Code | When |
+| System code | User / partner meaning |
 | --- | --- |
-| `institution_not_live` | School not verified / not on live Connect |
-| `link_mismatch` / not found | No active Link for school+student |
-| `obligation_not_found` | No dues row |
-| `obligation_not_open` | Already proven/cancelled/etc. |
-| `obligation_stale` | Marked stale; refresh before pay |
+| `institution_not_live` | This organisation isn’t verified / live yet |
+| `link_mismatch` | Pay code missing or doesn’t match that person |
+| `obligation_not_found` | No amount due on file |
+| `obligation_not_open` | That bill isn’t open for a new pay |
+| `obligation_stale` | Amount due is out of date — refresh first |
 
 ### M1 stub vs real
 
 | Piece | M1 |
 | --- | --- |
-| Dedicated `/lookup` API | **Stubbed / absent** — dogfood + seed use known codes (`HDA-ADA-001` → `obl_001`) |
-| Directory search UX | Partner-side (Mukuru); Senda holds data |
-| Obligation amount lock | **Real** in validate/instruct |
+| Dedicated lookup API | **Not built** — demos use known pay codes from seed data |
+| Search UX | Partner app |
+| Locked amount on the bill | **Real** in validate / instruct |
 
 ---
 
-## 3. Link formation (open binding)
+## 3. Pay code formation (open binding)
 
 ### Purpose
 
-Bind **student ↔ school** so Connect can authorize pays against that beneficiary’s Obligations. Day-one Links are **open** (not payer-bound).
+Tie **who it’s for ↔ organisation** so Connect can allow pays against that person’s amounts due. Day one: **open** (not locked to one payer).
 
-### What data binds
+### What binds
 
 ```
 Link {
-  link_code          # public handle partners use
-  institution_id
-  beneficiary_id
-  binding = open_student_school   # Decision #2
+  link_code          # pay code partners use
+  organisation
+  person
+  binding = open     # Decision #2: not payer-bound yet
   active
 }
 ```
 
-- **Does bind:** school + student.  
-- **Does not bind (MVP):** payer identity, remittance account, or a specific MTO.  
-- Enum exists for `payer_bound` but is **not** used in the live path.
+- **Binds:** organisation + person.  
+- **Does not bind (MVP):** payer identity or a specific partner.  
+- A “payer-bound” option exists in the model for later; not used on the live path.
 
 ### Formation (Biller / ops)
 
 ```
-PSEUDO form_link(school, student_csv_row):
-  upsert Beneficiary(student_ref, name, grade)
-  IF no active Link for (school, student):
-    create Link(link_code=generate(), binding=open_student_school)
-  # Fee template → bulk Obligations separately
+PSEUDO form_pay_code(organisation, roster_row):
+  upsert person (their_ref, name, …)
+  IF no active pay code for (organisation, person):
+    create pay code (open binding)
+  # Fee / bill templates → bulk amounts due separately
 ```
 
 ### M1
 
-Links are **seeded** (`HDA-ADA-001`, `HDA-BEN-002`). No self-serve “create Link” UI beyond fixture/seed. Biller shows existing Links’ payment state; creation is ops/CSV conceptually.
+Pay codes are **seeded** for the demo school. Full self-serve create UI comes later. Biller today is mainly visibility over what already exists.
 
 ---
 
-## 4. KYB / destination verify
+## 4. Organisation checks + payout account verify
 
 ### Purpose
 
-Gate who can receive Connect settles: school identity (KYB) + a **verified** settle destination that is Connect-eligible.
+Only verified organisations with a **checked payout account** can receive Connect settles. The account is **theirs** (bank / organisation-owned wallet) — not a Senda wallet.
 
 ### Flags today (M1)
 
 ```
-Institution.kybStatus: pending | verified | rejected
-Institution.liveConnect: boolean
+organisation.kybStatus: pending | verified | rejected
+organisation.liveConnect: yes/no
 
-SettleDestination.verified: boolean
-SettleDestination.type: bank_usd | ecocash | cash_pickup | paynow | zipit
-SettleDestination.ownership:  # EcoCash only
-  school_merchant | school_institutional | relative_personal | staff_personal
+payout_account.verified: yes/no
+payout_account.type: bank_usd | ecocash | … (others exist but are out of Connect)
 ```
 
-Connect eligibility (lock #10):
+Connect-allowed payout types (lock #10): **bank USD** and **organisation-owned EcoCash** only. Cash pickup, relative wallets, Paynow, ZIPIT stay out of Connect for the pilot.
 
 ```
-PSEUDO isConnectEligible(dest):
-  IF type NOT IN (bank_usd, ecocash) → REJECT  # paynow/zipit/cash out of Connect
-  IF type=ecocash AND ownership NOT IN (school_merchant, school_institutional)
-    → REJECT  # relative/staff personal wallets out
-  IF NOT dest.verified → destination_unverified
+PSEUDO payout_ok_for_connect(account):
+  IF type not bank_usd or organisation-owned ecocash → reject
+  IF EcoCash but owned by relative/staff personally → reject
+  IF not verified → “payout account not verified”
   OK
 ```
 
 ### What ops must prove later (not automated in M1)
 
-| Check | Intent |
-| --- | --- |
-| Legal entity / registration | School is the real institution |
-| Account title match | Bank title ≈ school legal name |
-| Bank USD / FCA ownership | School-owned nostro, not a personal account |
-| EcoCash merchant/institutional | Till/wallet owned by school, not a relative |
-| Re-verify on destination change | Versioned destinations; freeze at instruct |
-
-### Failure codes
-
-`institution_not_live`, `destination_rejected`, `destination_unverified`
+Legal identity of the organisation; account title matches; bank/wallet really owned by the organisation; re-check when the payout account changes.
 
 ### M1 stub vs real
 
 | Piece | M1 |
 | --- | --- |
-| KYB workflow / document upload | **Stub** — seed sets `kybStatus=verified`, `liveConnect=true` |
-| Destination verification ops | **Stub** — boolean `verified=true` on seed rows |
-| Eligibility rules in Connect | **Real** (`isConnectEligibleDestination`) |
-| Rejected destinations in seed | Present for negative tests (cash, relative EcoCash, paynow, zipit) |
+| Full KYB / document flow | **Stub** — seed marks the demo org verified + live |
+| Payout verification ops | **Stub** — boolean flag |
+| Connect eligibility rules | **Real** |
 
 ---
 
-## 5. Connect **validate**
+## 5. Connect **validate** (“can we pay this?”)
 
 ### Purpose
 
-Pre-flight: “Can this partner pay this Link’s Obligation to an eligible destination?” No Attempt created.
+Pre-flight check: can this partner pay this pay code’s amount due to an allowed payout account? **Does not** create a payment yet.
 
 ### Auth
 
-`Authorization: Bearer <partner_api_key>` → Partner record.
+Partner API key.
 
 ### Inputs
 
 ```
 POST /api/v1/connect/validate
 {
-  link_code,
-  obligation_id,          # external id or internal id
-  amount?,                # optional; if present must match Obligation
-  destination_type?,      # default bank_usd; only bank_usd | ecocash succeed
-  payer_hint?             # accepted at edge; not required for validate logic
+  link_code,              # pay code
+  obligation_id,          # amount due id
+  amount?,                # if sent, must match locked amount
+  destination_type?,      # bank_usd | ecocash (default bank)
+  payer_hint?             # optional note from partner
 }
 ```
 
-### Checks / rules (pseudocode)
+### Rules (pseudocode)
 
 ```
 PSEUDO validate(partner, input):
-  link = find Link by link_code WHERE active
-  IF missing → link_mismatch (404)
-
-  IF institution.country ≠ ZW → corridor_not_supported
-  IF NOT liveConnect OR kybStatus ≠ verified → institution_not_live
-
-  obligation = find by id/externalId
-  IF missing → obligation_not_found
-  IF obligation.institution ≠ link.institution → link_mismatch
-  IF obligation.beneficiary ≠ link.beneficiary → link_mismatch
-  IF status NOT IN (open, instructed) → obligation_not_open
-  IF stale → obligation_stale
-  IF amount provided AND ≠ obligation.amount → amount_mismatch
-
-  dest = first eligible SettleDestination of preferred type for institution
-  IF none / ineligible → destination_rejected | destination_unverified
-
-  IF partner.corridors lacks institution.country
-     OR partner.destinationCapabilities lacks dest.type
-     → partner_capability_mismatch
-
-  RETURN summaries + freezeDestination(dest)   # no DB write
+  resolve pay code (must be active)
+  organisation must be live pilot country + verified + live on Connect
+  amount due must exist, match same organisation + person, be open (or mid-flight), not out of date
+  if amount provided → must equal locked amount
+  pick eligible payout account of requested type
+  partner must support that country and that payout type
+  RETURN summaries + frozen payout snapshot   # no write
 ```
 
-### Outputs
+### Output (idea)
 
-```
-{
-  ok: true,
-  institution, beneficiary, link, obligation, destination  # destination frozen shape
-}
-```
+Organisation, person, pay code, amount due, payout account — enough for the partner UI to show “you’re about to pay X for Y at Z.”
 
-### Failure codes
+### Failures
 
-`institution_not_live` · `obligation_not_found` · `obligation_not_open` · `obligation_stale` · `link_mismatch` · `destination_rejected` · `destination_unverified` · `partner_capability_mismatch` · `corridor_not_supported` · `amount_mismatch` · `validation_error`
+Same codes as lookup, plus: payout rejected / not verified, partner can’t settle that type or corridor, amount mismatch, corridor not supported.
 
 ### M1
 
-**Real** in `src/lib/connect.ts` + `/api/v1/connect/validate`.
+**Real** in `apps/web/src/lib/connect.ts`.
 
 ---
 
-## 6. Connect **instruct**
+## 6. Connect **instruct** (“here’s where to send it”)
 
 ### Purpose
 
-Create an Attempt + Instruction: freeze the destination snapshot, mint unique `customer_reference`, mark Obligation `instructed`. Partner then settles off-platform with that ref.
+Create the **payment** and **pay instructions**: freeze payout details, mint a unique **payment reference**, mark the amount due as mid-flight. The partner then settles **off Senda** using that reference.
 
 ### Inputs
 
@@ -278,282 +292,199 @@ POST /api/v1/connect/instruct
 {
   link_code,
   obligation_id,
-  amount,                 # required; must match Obligation
-  idempotency_key,        # required
-  destination_type?,      # bank_usd | ecocash
+  amount,                 # required; must match
+  idempotency_key,        # retry key — same key = same payment, not a duplicate
+  destination_type?,
   payer_hint?
 }
 ```
 
-### Checks / rules
+### Rules (pseudocode)
 
 ```
 PSEUDO instruct(partner, input):
-  existing = Attempt by idempotency_key
-  IF existing:
-    IF different link/obligation → idempotency_conflict (409)
-    IF has Instruction → REPLAY same response (idempotent_replay=true)
-
-  validate(...)           # all validate rules, amount required match
-
-  IN TRANSACTION:
-    create Attempt(status=instructed, partner, link, obligation, dest type, payer_hint)
-    customer_reference = generate "SND-<ts>-<shortAttemptId>"
-    create Instruction(customer_reference, frozenDestination, amount, currency)
-    update Obligation.status = instructed
-
-  RETURN attempt_id, customer_reference, destination, amount, currency
+  IF retry key already used:
+    IF same pay code + amount due → return the same instructions again
+    ELSE → conflict (don’t silently attach to a different bill)
+  run validate (amount required)
+  create payment (status = instructed)
+  payment_reference = generate unique ref
+  save pay instructions (frozen payout + ref + amount)
+  mark amount due as instructed
+  RETURN payment id, payment reference, payout snapshot, amount
 ```
 
-### Outputs
+### Say this to partners
 
-```
-{
-  attempt_id,
-  customer_reference,     # e.g. SND-M1ABC-ABCD1234
-  destination,            # frozen snapshot
-  amount, currency,
-  status: "instructed",
-  idempotent_replay: bool
-}
-```
+> Send the same **retry key** if your request may have been retried. You will get the same pay instructions back — you will not open a second payment by accident.
 
-### Failure codes
-
-All validate codes + `idempotency_conflict`
+Avoid leading with “idempotent.”
 
 ### M1
 
-**Real** (including idempotent replay). Senda does **not** move money; partner settles to frozen destination with the ref (`mto_settles`).
+**Real**, including safe retry. Senda does **not** move the money.
 
 ---
 
-## 7. Connect **confirm**
+## 7. Connect **confirm** (“partner says they paid”)
 
 ### Purpose
 
-Ingest **MTO attestation** that settle happened; recon amount + currency (+ ref match) → `proven` | `needs_reconcile`; write Proof.
+Take the partner’s confirmation, compare payment reference + amount + currency to what we instructed, then mark **confirmed** or **needs a check**, and write **payment proof**.
 
 ### Inputs
 
 ```
 POST /api/v1/connect/confirm
 {
-  attempt_id,
-  customer_reference,
+  attempt_id,             # payment id
+  customer_reference,     # payment reference
   amount,
   currency,
-  partner_payment_id?,
+  partner_payment_id?,    # their own settle id
   settled_at?
 }
-# source = partner_api on this route
-# dogfood sets source = dogfood_stub
 ```
 
-### MTO attestation fields (day-one trust = L1)
+Confirmation **source** (system): `partner_api` | `dogfood_stub` (test) | `manual_ops`.
 
-| Field | Role |
-| --- | --- |
-| `customer_reference` | Must match Instruction |
-| `amount` / `currency` | Compared to instructed |
-| `partner_payment_id` | Partner’s own settle id (optional) |
-| `settled_at` | Partner-asserted settle time |
-| `source` | `partner_api` \| `dogfood_stub` \| `manual_ops` |
+### Day-one trust
 
-### Checks / rules
+This is **partner attestation** (“we paid”), not a bank statement or wallet feed proving the organisation received funds.
+
+### Rules (pseudocode)
 
 ```
 PSEUDO confirm(partner, input):
-  attempt = load with instruction, confirmation, proof, obligation
-  IF missing instruction → attempt_not_found
-  IF wrong partner (and source ≠ dogfood_stub) → attempt_not_found
-  IF confirmation+proof exist → REPLAY
-  IF confirmation without proof → already_confirmed (409)
-  IF customer_reference ≠ instruction → reference_mismatch
-
-  recon =
-    IF amount+currency match instruction → proven
-    ELSE → needs_reconcile (+ notes)
-
-  create Confirmation(source, recon…)
-  update Attempt + Obligation status to proven | needs_reconcile
-  write Proof artifact (senda.proof.v1)
-  RETURN status, recon_result, proof_id, storage_key
+  load payment + pay instructions
+  payment reference must match
+  IF amount + currency match instructions → confirmed (proven)
+  ELSE → needs a check
+  save partner confirmation + payment proof
 ```
-
-**Explicit:** day-one recon does **not** check bank statement, EcoCash till feed, or bursar mark-received. That is attestation, not school-received ledger evidence.
-
-### Failure codes
-
-`attempt_not_found` · `already_confirmed` · `reference_mismatch` (+ auth errors)
 
 ### M1
 
-**Real** recon on ref/amount/currency. Confirmation `source` distinguishes partner vs dogfood stub vs manual ops.
+**Real** for reference / amount / currency. No bank feed yet.
 
 ---
 
-## 8. Proof artifact shape
+## 8. Payment proof shape
 
 ### Purpose
 
-Durable record for partner + school that an Attempt was instructed and confirmed, with recon outcome.
+A durable record for the partner and the organisation: what was instructed, what was confirmed, and the outcome.
 
-### Shape (`senda.proof.v1`)
+### Shape (`senda.proof.v1`) — system fields
 
-```
-{
-  schema: "senda.proof.v1",
-  attempt_id,
-  customer_reference,
-  institution: { id, name, country },
-  beneficiary: { id, name, student_ref },
-  obligation: { id, amount, currency },
-  instruction: {
-    amount, currency,
-    frozen_destination: { id, type, currency, verified, account_title, bank_name,
-                          account_number, ownership, msisdn }
-  },
-  confirmation: {
-    amount, currency,
-    partner_payment_id,
-    settled_at,
-    source                 # partner_api | dogfood_stub | manual_ops
-  },
-  recon: { result: proven | needs_reconcile, notes },
-  proven_at                # write time (name historical; also set on needs_reconcile)
-}
-```
+Includes payment id, payment reference, organisation, person, amount due, frozen payout, confirmation (including **source**), and recon outcome (`proven` / `needs_reconcile`).
 
 ### Storage (M1)
 
-Local stub: `PROOF_STORAGE_DIR` → `local://proof_<attemptId>.json`. Production target: S3-compatible object store (lock #9); same payload shape.
-
-### M1
-
-**Real** write path; storage backend is local-file stub.
+Local files for now; later S3-compatible storage. Same payload shape.
 
 ---
 
 ## 9. Partner capability matrix
 
-Partners declare what they can settle. Validate/instruct enforce match.
+Each partner declares which countries and payout types they can settle. Validate / instruct enforce that.
 
-| Seed partner | Corridors | Destination capabilities | Intent |
-| --- | --- | --- | --- |
-| `partner_mukuru_sbx` | ZW | `bank_usd`, `ecocash` | Happy-path Mukuru sandbox |
-| `partner_bank_only` | ZW | `bank_usd` only | Negative: EcoCash → `partner_capability_mismatch` |
-| `partner_no_zw` | _(none)_ | _(none)_ | Negative: corridor fail |
+Demo seeds (names are fixtures, not product identity):
 
-```
-PSEUDO partnerCanSettle(partner, destType, institutionCountry):
-  IF country NOT IN partner.corridors → fail
-  IF destType NOT IN partner.destinationCapabilities → fail
-  OK
-```
-
-Auth: API key hashed at rest; Bearer presented on Connect routes.
-
----
-
-## 10. What Mukuru must provide vs what Senda already holds
-
-| Concern | Mukuru provides | Senda already holds |
+| Demo partner | Country | Can settle |
 | --- | --- | --- |
-| Payer UX / ~90s remit | Yes (Mukuru app) | No consumer app for payer |
-| Collect / FX / payout rail | Yes (`mto_settles`) | No PSP-core |
-| School / student directory data | Query only | Institution, Beneficiary, Link, Obligation |
-| Amount due | Displays locked amount | Obligation amount + currency |
-| Validate / instruct / confirm API calls | Calls Connect | Implements rules + ledger |
-| Settle to frozen destination + ref | Executes transfer | Issues Instruction |
-| Attestation of settle | `confirm` payload | Recon + Proof |
-| School KYB / destination | — | Biller / ops flags |
-| Proof visibility to school | Optional partner copy | Biller + proof store |
-
-Lookup UX is Mukuru’s; **truth** of who/what can be paid is Senda’s.
+| Full demo partner | ZW | bank USD + EcoCash |
+| Bank-only demo | ZW | bank USD only → EcoCash fails capability check |
+| No-corridor demo | none | fails country check |
 
 ---
 
-## 11. Dogfood stub ≠ bank-received evidence; BankEvidence is future
+## 10. What the partner brings vs what Senda holds
 
-### Dogfood
+| Concern | Partner | Senda |
+| --- | --- | --- |
+| Payer experience (~90s remit-class) | Their app | No consumer payer app |
+| Collect / FX / payout rails | Yes | Not a PSP |
+| Who can be paid / what’s owed | Looks up | Holds organisation, person, pay code, amount due |
+| Validate / instruct / confirm | Calls Connect | Owns rules + ledger |
+| Settle with payment reference | Executes transfer | Issues pay instructions |
+| “We paid” confirmation | Sends confirm | Recon + payment proof |
+| Organisation checks / payout verify | — | Biller / ops |
+| Proof for the organisation | Optional copy | Biller + proof store |
 
-Thin UI runs validate → instruct → confirm with `source: dogfood_stub`. Same recon math as partner confirm. **It is not evidence the school’s bank or EcoCash received funds.** It only proves the software loop.
+---
 
-```
-ConfirmationSource:
-  partner_api    # real MTO attest (still L1 — not bank feed)
-  dogfood_stub   # founder/ops loop; NOT bank-received
-  manual_ops     # ops-entered attest
-```
+## 11. Test confirmation ≠ money received; bank evidence is later
 
-### Trust ladder (from school-received research)
+### Dogfood / test loop
+
+The thin dogfood UI runs validate → instruct → confirm with source **test confirmation** (`dogfood_stub`). Same math as a partner confirm. **It does not mean the organisation’s bank or wallet received money.**
+
+### Trust ladder (short)
 
 | Level | Meaning | M1 |
 | --- | --- | --- |
-| **L1 Attest** | Partner/stub asserts settle | **Implemented** |
-| **L2 Evidence** | Statement screenshot / SMS artifact | Future |
-| **L3 Ledger feed** | Bank/EcoCash system-of-record credit | Future (`BankEvidence` / till feeds) |
-| **L4 Network confirm** | Rail-level credited (e.g. gpi) | Future |
+| Partner / test says they paid | Attestation | **Yes** |
+| Screenshot / statement artifact | Light evidence | Later |
+| Bank or wallet feed | System-of-record credit | Later (`BankEvidence` / till feeds) |
+| Rail-level “credited” | Network confirm | Later |
 
-### Explicit product rule
-
-- `proven` today = **ref + amount + currency match on an attestation** (`partner_api` / `dogfood_stub` / `manual_ops`).  
-- **`dogfood_stub` ≠ bank-received evidence.**  
-- **`BankEvidence` (or EcoCash till feed) is future** — not in M1 schema or Connect confirm. Disputes / unpaid school → `needs_reconcile` / ops; do not pretend L3 in the dogfood UI.
+**Product rule:** **Confirmed** today means payment reference + amount + currency matched an attestation. **Test confirmation ≠ received at the organisation.** Bank evidence is future — do not imply it in UI copy.
 
 ---
 
 ## 12. Biller surface (conceptual)
 
-| Function | Purpose | M1 |
+Biller is for the **organisation** (first wedge: a school). It sits **beside** their existing finance tools — it does not replace their full ledger.
+
+| Job | Plain meaning | M1 |
 | --- | --- | --- |
-| School login | Auth bursar/ops to institution | Stub password (`passwordStub`) |
-| View Obligations / Attempts / Proofs | Payment visibility beside school ERP | Read UI for seeded school |
-| KYB / destination / Link / CSV | Onboarding + freshness | Seeded data; full workflows later |
-| Mark external local payment | Keep dues honest when paid off-Connect | Conceptual; not deep in M1 |
-
-Biller sits **beside** school finance tools — it is not the school’s full ERP.
+| Sign in | Staff access for their organisation | Stub password |
+| See amounts due / payments / proofs | Visibility | Demo org read UI |
+| Organisation checks, payout accounts, pay codes, roster | Onboarding + freshness | Mostly seeded |
+| Record an off-Connect local pay | Keep “what’s owed” honest | Concept for later depth |
 
 ---
 
-## 13. End-to-end abroad happy path (pseudocode)
+## 13. Happy path (pseudocode, generic)
 
 ```
-# Setup (Biller / ops) — once per school/term
-KYB → verified; liveConnect=true
-verify SettleDestination(bank_usd or school ecocash)
-CSV students → Beneficiaries + open Links
-fee template → Obligations (amount locked)
+# Setup (Biller / ops) — once per organisation / billing period
+organisation checks → verified; live on Connect
+verify payout account (allowed type)
+import people → pay codes (open)
+bill / fee templates → amounts due (amount locked)
 
-# Pay time (Mukuru UX + Connect)
-payer picks school+student
-lookup → link_code + open obligation          # amount locked
-validate(link_code, obligation_id, amount?)
-instruct(... idempotency_key) → customer_reference + frozen destination
-Mukuru settles to destination with customer_reference
-confirm(attempt_id, customer_reference, amount, currency, partner_payment_id)
-  → proven | needs_reconcile
-Proof artifact available to partner + school
+# Pay time (partner app + Connect)
+payer finds organisation + person
+lookup → pay code + open amount due
+validate(pay code, amount due, amount?)
+instruct(... retry key) → payment reference + frozen payout
+partner settles to that payout with the payment reference
+confirm(payment id, payment reference, amount, currency, …)
+  → confirmed | needs a check
+payment proof available to partner + organisation
 ```
+
+**School-fees reading of the same path:** school + student + term bill; partner remits to the school’s account with Senda’s payment reference.
 
 ---
 
-## 14. Implementation map (M1)
+## 14. Where this lives in M1 code
 
 | Concept | Code (PR #8 scaffold) |
 | --- | --- |
 | Validate / instruct / confirm | `apps/web/src/lib/connect.ts` |
 | API routes | `apps/web/src/app/api/v1/connect/{validate,instruct,confirm}` |
-| Dogfood loop | `apps/web/src/app/api/v1/dogfood/run` + `/dogfood` |
+| Test loop | `apps/web/src/app/api/v1/dogfood/run` + `/dogfood` |
 | Proof write | `apps/web/src/lib/proofs.ts` |
-| Schema / enums | `apps/web/prisma/schema.prisma` |
-| Pilot fixture | `apps/web/prisma/seed.ts` (Heritage Demo Academy) |
+| Schema | `apps/web/prisma/schema.prisma` |
+| Demo seed | `apps/web/prisma/seed.ts` |
 
 ---
 
 ## Related
 
 - [How it works](./how-it-works.md)
-- [School-received confirmation](../research/school-received-confirmation.md) — trust ladder; BankEvidence future
-- Locked prefs: Decisions #1–#2, #5, #9–#10; Mukuru-class UX; fetch-at-pay Obligations
+- [School-received confirmation](../research/school-received-confirmation.md) — trust ladder; bank evidence later
+- Locked decisions: dogfood UI; open links; ZW-first pilot; stack; Connect settle types

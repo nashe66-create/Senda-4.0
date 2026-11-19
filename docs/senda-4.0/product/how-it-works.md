@@ -72,7 +72,7 @@ Instructions: same + idempotency_key → attempt_id, customer_reference, destina
 Confirm: attempt_id, customer_reference, amount, partner_payment_id, settled_at → proven | needs_reconcile.  
 Auth: partner API key. Field names not frozen until docs pack / API contract lands.
 
-**Deeper model:** [Connect concepts](./connect-concepts.md) — purpose, inputs, rules, failure codes, and M1 stub-vs-real for lookup, Link, KYB, validate/instruct/confirm, proof, and partner capabilities.
+**Deeper model:** [Connect concepts](./connect-concepts.md) — plain-language wording map + purpose, inputs, rules, failure codes, and M1 stub-vs-real (partners/billers generic; school fees = first wedge example).
 
 ## Ledger clarification
 
