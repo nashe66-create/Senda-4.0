@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getBillerSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { flagLabel, statusLabel } from "@/lib/ui-labels";
 import { LogoutButton } from "./logout-button";
 
 export const dynamic = "force-dynamic";
@@ -60,7 +61,7 @@ export default async function BillerPage() {
               letterSpacing: "0.05em",
             }}
           >
-            Biller · beside school systems
+            Biller · beside your finance tools
           </p>
           <h1 style={{ margin: "0.35rem 0 0", fontSize: "1.5rem" }}>
             {institution.name}
@@ -73,12 +74,12 @@ export default async function BillerPage() {
       </div>
 
       <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Obligations</h2>
+        <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Amounts due</h2>
         <table className="table">
           <thead>
             <tr>
               <th>ID</th>
-              <th>Student</th>
+              <th>Who it&apos;s for</th>
               <th>Amount</th>
               <th>Status</th>
               <th>Flags</th>
@@ -106,13 +107,16 @@ export default async function BillerPage() {
                           ? "badge-warn"
                           : "badge-muted"
                     }`}
+                    title={o.status}
                   >
-                    {o.status}
+                    {statusLabel(o.status)}
                   </span>
                 </td>
                 <td>
                   {o.stale ? (
-                    <span className="badge badge-warn">stale</span>
+                    <span className="badge badge-warn" title="stale">
+                      {flagLabel("stale")}
+                    </span>
                   ) : (
                     "—"
                   )}
@@ -124,20 +128,20 @@ export default async function BillerPage() {
       </section>
 
       <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Attempts</h2>
+        <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Payments</h2>
         {attempts.length === 0 ? (
           <p style={{ color: "var(--muted)", margin: 0 }}>
-            No attempts yet. Run the{" "}
-            <a href="/dogfood">dogfood loop</a> to create one.
+            No payments yet. Run the{" "}
+            <a href="/dogfood">test loop</a> to create one.
           </p>
         ) : (
           <table className="table">
             <thead>
               <tr>
-                <th>Attempt</th>
-                <th>Student</th>
-                <th>Ref</th>
-                <th>Dest</th>
+                <th>Payment</th>
+                <th>Who it&apos;s for</th>
+                <th>Payment reference</th>
+                <th>Payout</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -161,8 +165,9 @@ export default async function BillerPage() {
                             ? "badge-warn"
                             : "badge-muted"
                       }`}
+                      title={a.status}
                     >
-                      {a.status}
+                      {statusLabel(a.status)}
                     </span>
                   </td>
                 </tr>
@@ -173,9 +178,11 @@ export default async function BillerPage() {
       </section>
 
       <section className="panel">
-        <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Proofs</h2>
+        <h2 style={{ marginTop: 0, fontSize: "1.05rem" }}>Payment proofs</h2>
         {proofs.length === 0 ? (
-          <p style={{ color: "var(--muted)", margin: 0 }}>No proofs yet.</p>
+          <p style={{ color: "var(--muted)", margin: 0 }}>
+            No payment proofs yet.
+          </p>
         ) : (
           <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
             {proofs.map((a) => (

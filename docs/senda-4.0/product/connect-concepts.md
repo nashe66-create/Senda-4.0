@@ -1,7 +1,8 @@
 # Connect + Biller — how the pieces work (plain language + pseudocode)
 
-**Status:** Working draft. Aligned to locked product decisions and the M1 app scaffold (PR #8).  
+**Status:** Working draft. Aligned to locked product decisions and the M1 app scaffold.  
 **Audience:** Product + engineering.  
+**Language ownership:** This file’s §0 wording map is the vocabulary seed for product docs + `apps/web` UI copy (uniform plain-language pass).  
 **Core idea:** A **partner** moves the money. Senda checks that the pay is allowed, tells them where to send it and which reference to use, then records whether that pay can be trusted as proven.
 
 **First live wedge (example, not the product limit):** UK → Zimbabwe **school fees**. The same pattern is meant for other billers later (medical, funeral, utilities, …).  
@@ -46,9 +47,17 @@ If a system word would show on a screen, either rename it for display or pair it
 ### Open product call (nashe)
 
 **Is “Obligation” the right *system* name?**  
-Conceptually it means: a locked, allowlisted **amount due** for a specific person at a specific organisation. Strong alternatives for a later rename: `Due`, `Bill`, `AmountDue`. Until renamed, docs and UI should prefer **amount due** / **bill** in human text, and treat `Obligation` as the internal label.
+Conceptually it means: a locked, allowlisted **amount due** for a specific person at a specific organisation. Strong alternatives for a later rename: `Due`, `Bill`, `AmountDue`. Until renamed, docs and UI should prefer **amount due** / **bill** in human text, and treat `Obligation` as the internal label. **This pass does not rename Prisma / DB tables** — M1 UI uses display aliases only (`apps/web/src/lib/ui-labels.ts` + screen copy).
 
 **“Idempotent”** stays an engineering word only. Product/API docs for partners can say: *safe to retry with the same retry key*.
+
+### M1 UI aliases (shipped)
+
+| Screen | Labels |
+| --- | --- |
+| Home / nav | Test loop, Biller login |
+| Dogfood | Amount due, Pay code, Payout account, test confirmation |
+| Biller | Amounts due, Who it’s for, Payments, Payment reference, Payment proofs; status **Confirmed** / **Needs a check** |
 
 ---
 

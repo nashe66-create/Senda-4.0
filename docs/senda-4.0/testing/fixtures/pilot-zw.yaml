@@ -92,23 +92,29 @@ obligations:
     stale: true
 
 partners:
+  # Fixture key `mukuru_sandbox` / partner_id keep historical ids for pack compatibility.
+  # Display / product language: generic demo remittance partner (not a brand).
   mukuru_sandbox:
     partner_id: partner_mukuru_sbx
+    display_name: Demo remittance partner
     api_key_hint: sandbox
     corridors: [ZW]
     destination_capabilities: [bank_usd, ecocash]
   bank_only:
     partner_id: partner_bank_only
+    display_name: Bank-only demo partner
     corridors: [ZW]
     destination_capabilities: [bank_usd]
   no_zw:
     partner_id: partner_no_zw
+    display_name: No-corridor demo partner
     corridors: []
     destination_capabilities: []
 
 dogfood:
   surface: dogfood_ui
-  requires_live_mto: false
+  requires_live_partner: false
+  requires_live_mto: false  # alias kept for older case YAML
   loop: [validate, instruct, confirm, proof]
 
 auth:

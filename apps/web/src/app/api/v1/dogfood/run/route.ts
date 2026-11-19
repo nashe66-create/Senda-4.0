@@ -9,8 +9,8 @@ import { jsonOk, handleRouteError, jsonError } from "@/lib/api";
 import { SettleDestinationType } from "@prisma/client";
 
 /**
- * Dogfood loop: validate → instruct → confirm (stub MTO) → proof.
- * Uses the mukuru sandbox partner key in DB; no live MTO.
+ * Dogfood / test loop: validate → instruct → test confirmation → proof.
+ * Uses the demo remittance partner fixture in DB; no live partner settle.
  */
 const bodySchema = z.object({
   link_code: z.string().min(1),

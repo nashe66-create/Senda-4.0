@@ -25,7 +25,7 @@ export default async function DogfoodPage() {
   const options = obligations.map((o) => ({
     obligationId: o.externalId,
     linkCode: linkByBeneficiary.get(o.beneficiaryId) ?? "",
-    label: `${o.beneficiary.name} · ${o.externalId} · ${o.amount.toFixed(2)} ${o.currency}`,
+    label: `${o.beneficiary.name} · ${o.dueLabel ?? o.externalId} · ${o.amount.toFixed(2)} ${o.currency}`,
     amount: o.amount.toFixed(2),
   }));
 
@@ -41,14 +41,15 @@ export default async function DogfoodPage() {
             letterSpacing: "0.05em",
           }}
         >
-          Dogfood · no live MTO
+          Test loop · no live remittance partner
         </p>
         <h1 style={{ margin: "0.35rem 0 0", fontSize: "1.5rem" }}>
-          validate → instruct → confirm → proof
+          Check → pay instructions → test confirmation → proof
         </h1>
         <p style={{ margin: "0.5rem 0 0", color: "var(--muted)", maxWidth: 640 }}>
-          Runs the Connect loop on fixture data with a stub confirmation.
-          Confirmations are background-style: no bursar mark-received step.
+          Runs the Connect loop on fixture data with a{" "}
+          <strong>test confirmation</strong> (not real bank proof). This does{" "}
+          <em>not</em> mean the organisation received money.
         </p>
       </div>
       <DogfoodClient options={options} />

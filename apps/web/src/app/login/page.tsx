@@ -36,9 +36,9 @@ export default function LoginPage() {
 
   return (
     <div className="panel" style={{ maxWidth: 420 }}>
-      <h1 style={{ marginTop: 0, fontSize: "1.35rem" }}>School login</h1>
+      <h1 style={{ marginTop: 0, fontSize: "1.35rem" }}>Biller login</h1>
       <p style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
-        Stub auth for M1. Fixture:{" "}
+        Stub auth for M1 (demo school organisation). Fixture:{" "}
         <span className="mono">bursar@heritage-demo.zw</span> /{" "}
         <span className="mono">pilot</span>
       </p>

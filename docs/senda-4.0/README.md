@@ -2,8 +2,9 @@
 
 Canonical documentation for the Senda 4.0 purpose-settlement wedge lives under `docs/senda-4.0/`.
 
-**First wedge:** UK → Zimbabwe private school fees  
-**Doctrine:** Partners move money (`mto_settles`); Senda owns Links, refs, validation, recon, and proof.  
+**First wedge (example, not the product limit):** UK → Zimbabwe private school fees — same pattern for other billers later.  
+**Doctrine:** Remittance partners move money (`mto_settles`); Senda owns pay codes (Links), payment references, validation, recon, and payment proof.  
+**Language:** [Connect concepts §0](product/connect-concepts.md) — partners/billers generic; plain UX terms (amount due, pay code, confirmed / needs a check, retry key).  
 **Runnable app:** [`apps/web`](../../apps/web/README.md) (Next.js + Postgres M1 scaffold)
 
 ## Locked decisions (see also preferences)
@@ -12,7 +13,7 @@ Canonical documentation for the Senda 4.0 purpose-settlement wedge lives under `
 | --- | --- | --- |
 | 1–8 | Dogfood UI, Links, pricing, outreach, ZW-only pilot, docs on main, port pack, path `docs/senda-4.0/` | **Locked** |
 | **9** | Next.js App Router + TypeScript + Postgres; partner API keys + school/ops auth; S3-compatible proofs; Biller beside school systems; no NN / no ERP / no PSP-core day one | **LOCKED** |
-| **10** | Pilot Connect settle: `bank_usd` + school-owned `ecocash`; Paynow/ZIPIT school-local only; cash/relative wallets out of Connect; MTOs settle with Senda validate→ref→confirm | **LOCKED** |
+| **10** | Pilot Connect settle: `bank_usd` + school-owned `ecocash`; Paynow/ZIPIT school-local only; cash/relative wallets out of Connect; remittance partners settle with Senda validate→ref→confirm | **LOCKED** |
 
 ## Index
 

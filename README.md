@@ -1,8 +1,8 @@
 # Senda-4.0
 
-B2B purpose-settlement network (UK → Zimbabwe private school fees first).
+B2B purpose-settlement network (first wedge: UK → Zimbabwe private school fees; same pattern for other billers later).
 
-Partners move the money (`mto_settles`). Senda owns Links, refs, validation, recon, and **proof**.
+Remittance partners move the money (`mto_settles`). Senda owns pay codes (Links), payment references, validation, recon, and **payment proof**.
 
 ## App location
 
@@ -12,6 +12,7 @@ Docs research pack stays in **`docs/senda-4.0/`** (do not wipe).
 
 | | |
 | --- | --- |
+| Connect concepts (wording map) | [`docs/senda-4.0/product/connect-concepts.md`](docs/senda-4.0/product/connect-concepts.md) |
 | Product spec | [`docs/senda-4.0/product/how-it-works.md`](docs/senda-4.0/product/how-it-works.md) |
 | Work plan | [`docs/senda-4.0/work-plan.md`](docs/senda-4.0/work-plan.md) |
 | Lock test pack | [`docs/senda-4.0/testing/`](docs/senda-4.0/testing/README.md) |
@@ -36,12 +37,12 @@ npm run db:seed
 npm run dev
 ```
 
-Then open http://localhost:3000 → **Dogfood** for the happy path, or **School login** (`bursar@heritage-demo.zw` / `pilot`) for Biller.
+Then open http://localhost:3000 → **Test loop** for the happy path, or **Biller login** (`bursar@heritage-demo.zw` / `pilot`) for Biller.
 
 Without Docker, point `DATABASE_URL` in `apps/web/.env` at any Postgres 16 instance (user/db `senda` / password `senda` matches the compose defaults).
 
 ## Connect loop
 
-`validate` → `instruct` (frozen destination + unique ref) → `confirm` (stub MTO attest) → recon → `proven` | `needs_reconcile` → proof artifact.
+`validate` → `instruct` (frozen payout + unique payment reference) → `confirm` (partner or test attestation) → recon → **confirmed** (`proven`) or **needs a check** (`needs_reconcile`) → payment proof.
 
 See [`apps/web/README.md`](apps/web/README.md) for curl examples and sandbox API keys.

@@ -13,7 +13,7 @@ export default function HomePage() {
             letterSpacing: "0.06em",
           }}
         >
-          M1 scaffold · UK → Zimbabwe school fees
+          M1 scaffold · first wedge UK → Zimbabwe school fees
         </p>
         <h1
           style={{
@@ -23,12 +23,14 @@ export default function HomePage() {
             lineHeight: 1.2,
           }}
         >
-          Prove the right school and student got paid.
+          Prove the right organisation and person got paid.
         </h1>
         <p style={{ margin: 0, color: "var(--muted)", maxWidth: 560 }}>
-          Partners move the money. Senda owns Links, refs, validation, recon,
-          and proof. Connect destinations:{" "}
-          <span className="mono">bank_usd</span> + school-owned{" "}
+          Remittance partners move the money. Senda checks the pay is allowed,
+          issues a payment reference, and records whether that pay can be
+          trusted. First live wedge is school fees; the same pattern is for
+          other billers later. Payout accounts:{" "}
+          <span className="mono">bank_usd</span> + organisation-owned{" "}
           <span className="mono">ecocash</span>.
         </p>
         <div
@@ -40,7 +42,7 @@ export default function HomePage() {
           }}
         >
           <Link className="btn" href="/dogfood">
-            Run dogfood loop
+            Run test loop
           </Link>
           <Link className="btn btn-ghost" href="/biller">
             Open Biller
@@ -58,24 +60,23 @@ export default function HomePage() {
         <div className="panel">
           <h2 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>Connect</h2>
           <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.9rem" }}>
-            Partner API key →{" "}
-            <span className="mono">/api/v1/connect/validate</span> → instruct →
-            confirm (idempotent).
+            Partner API key → validate → get pay instructions → confirm. Same
+            retry key is safe to retry (no duplicate payment).
           </p>
         </div>
         <div className="panel">
           <h2 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>Biller</h2>
           <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.9rem" }}>
-            School stub login. List obligations, attempts, and proofs for the
-            pilot fixture school.
+            Organisation stub login. See amounts due, payments, and payment
+            proofs for the demo school (first-wedge fixture).
           </p>
         </div>
         <div className="panel">
           <h2 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>Product</h2>
           <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.9rem" }}>
-            Spec:{" "}
-            <a href="https://github.com/nashe66-create/Senda-4.0/blob/main/docs/senda-4.0/product/how-it-works.md">
-              how-it-works
+            Wording map + how it works:{" "}
+            <a href="https://github.com/nashe66-create/Senda-4.0/blob/main/docs/senda-4.0/product/connect-concepts.md">
+              connect-concepts
             </a>{" "}
             in <span className="mono">docs/senda-4.0/</span>.
           </p>

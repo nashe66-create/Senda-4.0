@@ -30,7 +30,8 @@ async function main() {
   await prisma.institution.deleteMany();
   await prisma.partner.deleteMany();
 
-  const mukuruKey =
+  // Fixture ids keep historical names for YAML compatibility; display names are generic.
+  const demoPartnerKey =
     process.env.SANDBOX_API_KEY_MUKURU || "sk_sandbox_mukuru_demo";
   const bankOnlyKey =
     process.env.SANDBOX_API_KEY_BANK_ONLY || "sk_sandbox_bank_only";
@@ -40,8 +41,8 @@ async function main() {
     data: [
       {
         partnerId: "partner_mukuru_sbx",
-        name: "Mukuru Sandbox",
-        apiKeyHash: hashApiKey(mukuruKey),
+        name: "Demo remittance partner",
+        apiKeyHash: hashApiKey(demoPartnerKey),
         apiKeyHint: "sandbox",
         corridors: [CountryCode.ZW],
         destinationCapabilities: [
@@ -51,7 +52,7 @@ async function main() {
       },
       {
         partnerId: "partner_bank_only",
-        name: "Bank-only Partner",
+        name: "Bank-only demo partner",
         apiKeyHash: hashApiKey(bankOnlyKey),
         apiKeyHint: "bank_only",
         corridors: [CountryCode.ZW],
@@ -59,7 +60,7 @@ async function main() {
       },
       {
         partnerId: "partner_no_zw",
-        name: "No-ZW Partner",
+        name: "No-corridor demo partner",
         apiKeyHash: hashApiKey(noZwKey),
         apiKeyHint: "no_zw",
         corridors: [],
@@ -234,9 +235,9 @@ async function main() {
   });
 
   console.log("Seed complete.");
-  console.log("  School login: bursar@heritage-demo.zw / pilot");
-  console.log(`  Mukuru API key: ${mukuruKey}`);
-  console.log("  Links: HDA-ADA-001 (obl_001), HDA-BEN-002 (obl_002)");
+  console.log("  Biller login: bursar@heritage-demo.zw / pilot");
+  console.log(`  Demo partner API key: ${demoPartnerKey}`);
+  console.log("  Pay codes: HDA-ADA-001 (obl_001), HDA-BEN-002 (obl_002)");
 }
 
 main()

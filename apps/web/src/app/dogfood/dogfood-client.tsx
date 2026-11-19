@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { statusLabel } from "@/lib/ui-labels";
 
 type Option = {
   obligationId: string;
@@ -25,7 +26,7 @@ export function DogfoodClient({ options }: { options: Option[] }) {
 
   async function run() {
     if (!current?.linkCode) {
-      setError("No link for selected obligation");
+      setError("No pay code for the selected amount due");
       return;
     }
     setLoading(true);
@@ -60,18 +61,30 @@ export function DogfoodClient({ options }: { options: Option[] }) {
     }
   }
 
+  const recon =
+    result &&
+    typeof result === "object" &&
+    result !== null &&
+    "confirm" in result &&
+    typeof (result as { confirm?: { recon_result?: string } }).confirm ===
+      "object"
+      ? (result as { confirm?: { recon_result?: string } }).confirm
+          ?.recon_result
+      : undefined;
+
   return (
     <div className="panel" style={{ display: "grid", gap: "1rem" }}>
       {options.length === 0 ? (
         <p style={{ margin: 0, color: "var(--muted)" }}>
-          No open obligations. Run <span className="mono">npm run db:seed</span>{" "}
-          in <span className="mono">apps/web</span>.
+          No open amounts due. Run{" "}
+          <span className="mono">npm run db:seed</span> in{" "}
+          <span className="mono">apps/web</span>.
         </p>
       ) : (
         <>
           <div>
             <label className="label" htmlFor="obl">
-              Obligation
+              Amount due
             </label>
             <select
               id="obl"
@@ -88,7 +101,7 @@ export function DogfoodClient({ options }: { options: Option[] }) {
           </div>
           <div>
             <label className="label" htmlFor="dest">
-              Settle destination
+              Payout account
             </label>
             <select
               id="dest"
@@ -98,13 +111,13 @@ export function DogfoodClient({ options }: { options: Option[] }) {
                 setDestinationType(e.target.value as "bank_usd" | "ecocash")
               }
             >
-              <option value="bank_usd">bank_usd (Steward FCA)</option>
-              <option value="ecocash">ecocash (school merchant)</option>
+              <option value="bank_usd">Bank USD (demo school FCA)</option>
+              <option value="ecocash">EcoCash (organisation merchant)</option>
             </select>
           </div>
           {current && (
             <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.9rem" }}>
-              Link <span className="mono">{current.linkCode}</span> · amount{" "}
+              Pay code <span className="mono">{current.linkCode}</span> ·{" "}
               <span className="mono">{current.amount} USD</span>
             </p>
           )}
@@ -120,9 +133,30 @@ export function DogfoodClient({ options }: { options: Option[] }) {
         </p>
       )}
 
+      {recon && (
+        <p style={{ margin: 0, fontSize: "0.95rem" }}>
+          Outcome: <strong>{statusLabel(recon)}</strong>
+          {recon === "proven" && (
+            <span style={{ color: "var(--muted)" }}>
+              {" "}
+              — test confirmation matched payment reference + amount (not bank
+              proof of receipt).
+            </span>
+          )}
+          {recon === "needs_reconcile" && (
+            <span style={{ color: "var(--muted)" }}>
+              {" "}
+              — partner/ops must look.
+            </span>
+          )}
+        </p>
+      )}
+
       {result != null && (
         <div>
-          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>Result</h2>
+          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>
+            Result (system payload)
+          </h2>
           <pre className="pre">{JSON.stringify(result, null, 2)}</pre>
         </div>
       )}
