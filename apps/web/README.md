@@ -40,7 +40,7 @@ Open http://localhost:3000
 | --- | --- | --- |
 | Home | `/` | — |
 | Test loop | `/dogfood` | Happy path + mismatch (needs a check); validate → pay instructions → test confirmation → proof |
-| Biller | `/biller` | Login at `/login`; organisation checks + payout account verified/pending |
+| Biller | `/biller` | Login at `/login`; amounts due, destination checks, payment status + proof download |
 | Biller login | `/login` | `bursar@heritage-demo.zw` / `pilot` |
 
 ### Connect API (sandbox)

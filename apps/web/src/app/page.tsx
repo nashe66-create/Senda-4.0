@@ -67,8 +67,8 @@ export default function HomePage() {
         <div className="panel">
           <h2 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>Biller</h2>
           <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.9rem" }}>
-            Organisation stub login. See amounts due, payments, and payment
-            proofs for the demo school (first-wedge fixture).
+            Bursar login: open bills, destination checks (verified vs pending),
+            payment status, and proof download for the demo organisation.
           </p>
         </div>
         <div className="panel">
