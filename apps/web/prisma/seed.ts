@@ -109,6 +109,17 @@ async function main() {
         ownership: EcoCashOwnership.school_merchant,
         msisdn: "+263771000001",
       },
+      // Pending verify — shown on Biller organisation-checks checklist
+      {
+        externalId: "dest_bank_pending",
+        institutionId: institution.id,
+        type: SettleDestinationType.bank_usd,
+        verified: false,
+        currency: "USD",
+        accountTitle: "Heritage Demo Academy FCA (pending)",
+        bankName: "CBZ Bank",
+        accountNumber: "USD-PENDING-001",
+      },
       // Rejected examples kept for negative tests (not Connect-eligible)
       {
         externalId: "dest_cash_reject",

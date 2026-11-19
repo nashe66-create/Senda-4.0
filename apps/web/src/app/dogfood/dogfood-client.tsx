@@ -10,13 +10,39 @@ type Option = {
   amount: string;
 };
 
+type DogfoodPath = "happy" | "mismatch";
+
+type ConfirmSlice = {
+  recon_result?: string;
+  recon_notes?: string | null;
+  proof_issued?: boolean;
+  instructed?: { amount: string; currency: string };
+  confirmed?: { amount: string; currency: string };
+};
+
+type DogfoodResult = {
+  path?: DogfoodPath;
+  path_label?: string;
+  confirm?: ConfirmSlice;
+  mismatch?: {
+    deliberate?: boolean;
+    what_differed?: string;
+    instructed?: { amount: string; currency: string };
+    confirmed?: { amount: string; currency: string };
+    note?: string;
+  } | null;
+  proof?: { id: string; storage_key: string; schema?: string } | null;
+  proof_issued?: boolean;
+  proof_note?: string;
+};
+
 export function DogfoodClient({ options }: { options: Option[] }) {
   const [selected, setSelected] = useState(options[0]?.obligationId ?? "");
   const [destinationType, setDestinationType] = useState<"bank_usd" | "ecocash">(
     "bank_usd",
   );
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<unknown>(null);
+  const [loading, setLoading] = useState<DogfoodPath | null>(null);
+  const [result, setResult] = useState<DogfoodResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const current = useMemo(
@@ -24,12 +50,12 @@ export function DogfoodClient({ options }: { options: Option[] }) {
     [options, selected],
   );
 
-  async function run() {
+  async function run(path: DogfoodPath) {
     if (!current?.linkCode) {
       setError("No pay code for the selected amount due");
       return;
     }
-    setLoading(true);
+    setLoading(path);
     setError(null);
     setResult(null);
     try {
@@ -41,6 +67,7 @@ export function DogfoodClient({ options }: { options: Option[] }) {
           obligation_id: current.obligationId,
           destination_type: destinationType,
           amount: current.amount,
+          path,
         }),
       });
       const data = await res.json();
@@ -53,24 +80,19 @@ export function DogfoodClient({ options }: { options: Option[] }) {
         setResult(data);
         return;
       }
-      setResult(data);
+      setResult(data as DogfoodResult);
     } catch {
       setError("Network error");
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   }
 
-  const recon =
-    result &&
-    typeof result === "object" &&
-    result !== null &&
-    "confirm" in result &&
-    typeof (result as { confirm?: { recon_result?: string } }).confirm ===
-      "object"
-      ? (result as { confirm?: { recon_result?: string } }).confirm
-          ?.recon_result
-      : undefined;
+  const recon = result?.confirm?.recon_result;
+  const isMismatch = result?.path === "mismatch" || recon === "needs_reconcile";
+  const instructed =
+    result?.mismatch?.instructed ?? result?.confirm?.instructed;
+  const confirmed = result?.mismatch?.confirmed ?? result?.confirm?.confirmed;
 
   return (
     <div className="panel" style={{ display: "grid", gap: "1rem" }}>
@@ -111,7 +133,7 @@ export function DogfoodClient({ options }: { options: Option[] }) {
                 setDestinationType(e.target.value as "bank_usd" | "ecocash")
               }
             >
-              <option value="bank_usd">Bank USD (demo school FCA)</option>
+              <option value="bank_usd">Bank USD (demo org FCA)</option>
               <option value="ecocash">EcoCash (organisation merchant)</option>
             </select>
           </div>
@@ -119,11 +141,76 @@ export function DogfoodClient({ options }: { options: Option[] }) {
             <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.9rem" }}>
               Pay code <span className="mono">{current.linkCode}</span> ·{" "}
               <span className="mono">{current.amount} USD</span>
+              <br />
+              Same request is safe to retry with the same retry key (no second
+              payment).
             </p>
           )}
-          <button className="btn" type="button" onClick={run} disabled={loading}>
-            {loading ? "Running…" : "Run happy path"}
-          </button>
+
+          <div
+            style={{
+              display: "grid",
+              gap: "0.75rem",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            }}
+          >
+            <div
+              style={{
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                padding: "0.85rem 1rem",
+                display: "grid",
+                gap: "0.55rem",
+              }}
+            >
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)" }}>
+                Happy path
+              </p>
+              <p style={{ margin: 0, fontSize: "0.9rem" }}>
+                Confirm matches the bill →{" "}
+                <strong>{statusLabel("proven")}</strong> + payment proof.
+              </p>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => run("happy")}
+                disabled={loading !== null}
+              >
+                {loading === "happy" ? "Running…" : "Run happy path"}
+              </button>
+            </div>
+
+            <div
+              style={{
+                border: "1px solid #6a5830",
+                borderRadius: 6,
+                padding: "0.85rem 1rem",
+                display: "grid",
+                gap: "0.55rem",
+                background: "rgba(106, 88, 48, 0.12)",
+              }}
+            >
+              <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--warn)" }}>
+                Mismatch path · not the happy path
+              </p>
+              <p style={{ margin: 0, fontSize: "0.9rem" }}>
+                Partner confirmation uses the wrong amount →{" "}
+                <strong>{statusLabel("needs_reconcile")}</strong>; no{" "}
+                <span className="mono">senda.proof.v1</span>.
+              </p>
+              <button
+                className="btn btn-ghost"
+                type="button"
+                onClick={() => run("mismatch")}
+                disabled={loading !== null}
+                style={{ borderColor: "#6a5830", color: "#e8d5a3" }}
+              >
+                {loading === "mismatch"
+                  ? "Running…"
+                  : "Run mismatch (needs a check)"}
+              </button>
+            </div>
+          </div>
         </>
       )}
 
@@ -133,23 +220,106 @@ export function DogfoodClient({ options }: { options: Option[] }) {
         </p>
       )}
 
-      {recon && (
-        <p style={{ margin: 0, fontSize: "0.95rem" }}>
-          Outcome: <strong>{statusLabel(recon)}</strong>
-          {recon === "proven" && (
-            <span style={{ color: "var(--muted)" }}>
-              {" "}
-              — test confirmation matched payment reference + amount (not bank
-              proof of receipt).
+      {result && recon && (
+        <div
+          className="panel"
+          style={{
+            margin: 0,
+            padding: "1rem",
+            borderColor: isMismatch ? "#6a5830" : "var(--accent-soft)",
+            background: isMismatch
+              ? "rgba(106, 88, 48, 0.15)"
+              : "rgba(42, 95, 77, 0.2)",
+            display: "grid",
+            gap: "0.65rem",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: "0.8rem", color: "var(--muted)" }}>
+            {result.path_label ??
+              (isMismatch ? "Mismatch / needs a check" : "Happy path")}
+          </p>
+          <p style={{ margin: 0, fontSize: "1.05rem" }}>
+            Status:{" "}
+            <span
+              className={`badge ${isMismatch ? "badge-warn" : "badge-ok"}`}
+              title={recon}
+            >
+              {statusLabel(recon)}
+            </span>{" "}
+            <span className="mono" style={{ color: "var(--muted)" }}>
+              ({recon})
             </span>
+          </p>
+
+          {instructed && confirmed && (
+            <div style={{ fontSize: "0.9rem" }}>
+              <p style={{ margin: "0 0 0.35rem", color: "var(--muted)" }}>
+                {isMismatch
+                  ? "What differed (instructed vs confirmed)"
+                  : "Instructed vs confirmed (match)"}
+              </p>
+              <table className="table" style={{ maxWidth: 420 }}>
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Amount</th>
+                    <th>Currency</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Pay instructions (bill)</td>
+                    <td className="mono">{instructed.amount}</td>
+                    <td className="mono">{instructed.currency}</td>
+                  </tr>
+                  <tr>
+                    <td>Partner confirmation</td>
+                    <td className="mono">{confirmed.amount}</td>
+                    <td className="mono">{confirmed.currency}</td>
+                  </tr>
+                </tbody>
+              </table>
+              {result.confirm?.recon_notes && (
+                <p
+                  style={{
+                    margin: "0.5rem 0 0",
+                    color: "var(--warn)",
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  {result.confirm.recon_notes}
+                </p>
+              )}
+            </div>
           )}
-          {recon === "needs_reconcile" && (
-            <span style={{ color: "var(--muted)" }}>
-              {" "}
-              — partner/ops must look.
-            </span>
+
+          <p style={{ margin: 0, fontSize: "0.9rem" }}>
+            Payment proof:{" "}
+            {result.proof_issued || result.proof ? (
+              <span>
+                <span className="badge badge-ok">Issued</span>{" "}
+                <span className="mono">senda.proof.v1</span>
+                {result.proof?.storage_key && (
+                  <>
+                    {" "}
+                    · <span className="mono">{result.proof.storage_key}</span>
+                  </>
+                )}
+              </span>
+            ) : (
+              <span>
+                <span className="badge badge-warn">Not issued</span> — no{" "}
+                <span className="mono">senda.proof.v1</span> for the organisation
+                (proof blocked until the check clears).
+              </span>
+            )}
+          </p>
+          {result.proof_note && (
+            <p style={{ margin: 0, fontSize: "0.85rem", color: "var(--muted)" }}>
+              {result.proof_note}
+            </p>
           )}
-        </p>
+        </div>
       )}
 
       {result != null && (

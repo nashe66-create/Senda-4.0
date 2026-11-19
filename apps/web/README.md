@@ -39,8 +39,8 @@ Open http://localhost:3000
 | Surface | URL | Creds |
 | --- | --- | --- |
 | Home | `/` | — |
-| Test loop | `/dogfood` | validate → pay instructions → test confirmation → proof |
-| Biller | `/biller` | Login at `/login` |
+| Test loop | `/dogfood` | Happy path + mismatch (needs a check); validate → pay instructions → test confirmation → proof |
+| Biller | `/biller` | Login at `/login`; organisation checks + payout account verified/pending |
 | Biller login | `/login` | `bursar@heritage-demo.zw` / `pilot` |
 
 ### Connect API (sandbox)
