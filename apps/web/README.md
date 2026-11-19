@@ -6,7 +6,7 @@ Next.js App Router + TypeScript + Prisma + Postgres.
 
 **Say to users:** organisation → payout account → who it’s for → pay code → amount due → payment → pay instructions → partner confirmation → payment proof.
 
-**Surfaces:** Connect (partner API key), Biller (organisation stub login), Test loop / dogfood (no live remittance partner).
+**Surfaces:** Connect (partner API key), Biller (organisation stub login), Pilot walkthrough (`/pilot`), Test loop / dogfood (no live remittance partner).
 
 **Wording map:** [`../../docs/senda-4.0/product/connect-concepts.md`](../../docs/senda-4.0/product/connect-concepts.md) §0  
 **How it works:** [`../../docs/senda-4.0/product/how-it-works.md`](../../docs/senda-4.0/product/how-it-works.md)
@@ -39,9 +39,12 @@ Open http://localhost:3000
 | Surface | URL | Creds |
 | --- | --- | --- |
 | Home | `/` | — |
+| Pilot | `/pilot` | Guided Connect + Biller loop; sandbox API key on Connect; bursar proof handoff |
 | Test loop | `/dogfood` | Happy path + mismatch (needs a check); validate → pay instructions → test confirmation → proof |
 | Biller | `/biller` | Login at `/login`; amounts due, destination checks, payment status + proof download |
 | Biller login | `/login` | `bursar@heritage-demo.zw` / `pilot` |
+
+**Pilot runbook:** [`../../docs/senda-4.0/product/pilot-runbook.md`](../../docs/senda-4.0/product/pilot-runbook.md) · curl: `bash docs/senda-4.0/product/scripts/pilot-loop.sh`
 
 ### Connect API (sandbox)
 

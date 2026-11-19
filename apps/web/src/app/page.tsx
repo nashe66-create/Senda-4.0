@@ -13,7 +13,7 @@ export default function HomePage() {
             letterSpacing: "0.06em",
           }}
         >
-          M1 scaffold · first wedge UK → Zimbabwe school fees
+          Wedge pilot · UK → Zimbabwe school fees (first biller type)
         </p>
         <h1
           style={{
@@ -41,11 +41,14 @@ export default function HomePage() {
             flexWrap: "wrap",
           }}
         >
-          <Link className="btn" href="/dogfood">
-            Run test loop
+          <Link className="btn" href="/pilot">
+            Walk pilot loop
           </Link>
           <Link className="btn btn-ghost" href="/biller">
             Open Biller
+          </Link>
+          <Link className="btn btn-ghost" href="/dogfood">
+            Test loop
           </Link>
         </div>
       </section>
@@ -58,6 +61,15 @@ export default function HomePage() {
         }}
       >
         <div className="panel">
+          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>Pilot</h2>
+          <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.9rem" }}>
+            Guided Connect + Biller path for a partner walkthrough: bill →
+            instruct (sandbox API key) → confirm → bursar proof. Runbook in{" "}
+            <span className="mono">docs/senda-4.0/product/pilot-runbook.md</span>
+            .
+          </p>
+        </div>
+        <div className="panel">
           <h2 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>Connect</h2>
           <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.9rem" }}>
             Partner API key → validate → get pay instructions → confirm. Same
@@ -69,16 +81,6 @@ export default function HomePage() {
           <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.9rem" }}>
             Bursar login: open bills, destination checks (verified vs pending),
             payment status, and proof download for the demo organisation.
-          </p>
-        </div>
-        <div className="panel">
-          <h2 style={{ margin: "0 0 0.5rem", fontSize: "1rem" }}>Product</h2>
-          <p style={{ margin: 0, color: "var(--muted)", fontSize: "0.9rem" }}>
-            Wording map + how it works:{" "}
-            <a href="https://github.com/nashe66-create/Senda-4.0/blob/main/docs/senda-4.0/product/connect-concepts.md">
-              connect-concepts
-            </a>{" "}
-            in <span className="mono">docs/senda-4.0/</span>.
           </p>
         </div>
       </section>
