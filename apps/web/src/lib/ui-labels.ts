@@ -6,11 +6,21 @@
 
 export const STATUS_LABEL: Record<string, string> = {
   open: "Open",
+  created: "Pending",
   instructed: "Pay in progress",
+  confirmed: "Partner confirmed",
   proven: "Confirmed",
   needs_reconcile: "Needs a check",
   cancelled: "Cancelled",
 };
+
+/** Badge tone for amount-due / payment status. */
+export function statusBadgeClass(status: string): string {
+  if (status === "proven") return "badge-ok";
+  if (status === "needs_reconcile") return "badge-warn";
+  if (status === "open" || status === "created") return "badge-muted";
+  return "badge-muted";
+}
 
 export function statusLabel(status: string): string {
   return STATUS_LABEL[status] ?? status;

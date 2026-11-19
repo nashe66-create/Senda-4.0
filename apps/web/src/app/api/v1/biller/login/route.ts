@@ -27,12 +27,15 @@ export async function POST(request: Request) {
       email: user.email,
     });
 
+    const organisation = {
+      id: user.institution.externalId,
+      name: user.institution.name,
+    };
     const res = jsonOk({
       ok: true,
-      school: {
-        id: user.institution.externalId,
-        name: user.institution.name,
-      },
+      // Prefer organisation; school kept as alias for older dogfood/scripts.
+      organisation,
+      school: organisation,
       user: { email: user.email, name: user.name },
     });
 
