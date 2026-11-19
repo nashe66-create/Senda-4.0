@@ -3,7 +3,8 @@
 Canonical documentation for the Senda 4.0 purpose-settlement wedge lives under `docs/senda-4.0/`.
 
 **First wedge:** UK → Zimbabwe private school fees  
-**Doctrine:** Partners move money (`mto_settles`); Senda owns Links, refs, validation, recon, and proof.
+**Doctrine:** Partners move money (`mto_settles`); Senda owns Links, refs, validation, recon, and proof.  
+**Runnable app:** [`apps/web`](../../apps/web/README.md) (Next.js + Postgres M1 scaffold)
 
 ## Locked decisions (see also preferences)
 
