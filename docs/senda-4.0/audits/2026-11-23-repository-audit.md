@@ -151,3 +151,132 @@ Continue Senda 4.0. The business direction and stack are appropriate. The key we
 - Record exact commit SHA, test commands, outputs and any inaccessible items.
 
 This document records the findings of the initial audit only. It must not be represented as a completed exhaustive forensic audit until the outstanding work above has been completed.
+
+
+---
+
+# Exhaustive audit continuation — 23 November 2026
+
+## Verified repository inventory and branch-tree results
+
+Repository metadata was re-read from GitHub:
+- Default branch: `main`
+- Visibility: public
+- Connected permissions reported: pull, push, maintain and admin
+- Repository size reported by GitHub: 329 KB
+- Branches returned by GitHub: 10
+- Main recursive tree: 131 entries including directory nodes; 88 tracked file blobs
+- All ten recursive branch-tree requests returned `truncated: false`
+
+The ten branch tips inspected were:
+- `main`
+- `cursor/add-senda-4-pivot-doc-3bc0`
+- `cursor/biller-bursar-surface-8d87`
+- `cursor/connect-concepts-doc-9c8e`
+- `cursor/connect-partner-hardening-1927`
+- `cursor/mismatch-kyb-checklist-7986`
+- `cursor/onboarding-dues-scenarios-53ef`
+- `cursor/scaffold-mvp-app-3a57`
+- `cursor/wedge-pilot-loop-ee1f`
+- `docs/kuva-cash-feedback-nov18`
+
+Branch-tree comparison against main:
+- `main`: 88 files.
+- `cursor/biller-bursar-surface-8d87`: 82 files; six main paths absent, no branch-only paths.
+- `cursor/connect-concepts-doc-9c8e`: 38 files; documentation-only snapshot, no branch-only paths.
+- `cursor/connect-partner-hardening-1927`: 81 files; seven main paths absent, no branch-only paths.
+- `cursor/mismatch-kyb-checklist-7986`: 79 files; nine main paths absent, no branch-only paths.
+- `cursor/onboarding-dues-scenarios-53ef`: 88 files; adds `docs/senda-4.0/product/onboarding-dues-scenarios.md`; audit report absent because it predates the report commit.
+- `cursor/scaffold-mvp-app-3a57`: 77 files; earlier scaffold snapshot, no branch-only paths.
+- `cursor/wedge-pilot-loop-ee1f`: 87 files; audit report absent because it predates the report commit.
+- `docs/kuva-cash-feedback-nov18`: 35 files; documentation/research snapshot and adds `docs/senda-4.0/research/kuva-cash-feedback.md`.
+- `cursor/add-senda-4-pivot-doc-3bc0`: 2 files; earliest pivot-only snapshot.
+
+The branch trees show two branch-only tracked documents across the ten branch tips: the onboarding/dues scenarios brief and the Kuva Cash feedback note. Older branches omit later main files; absence is not evidence of deletion from main. No branch has been merged or modified as part of this audit.
+
+## Complete commit-list pagination
+
+GitHub REST commit listing was requested with `per_page=100`, page 1 and page 2. Page 1 returned 33 commits; page 2 returned zero. This verifies 33 commits in the returned history at the time of inspection. Commit-by-commit diff inspection is still in progress; the commit list alone is not a complete historical code review.
+
+## Pull request inventory
+
+GitHub returned 15 pull requests:
+- #15 — open, onboarding + dues freshness decision scenarios; branch `cursor/onboarding-dues-scenarios-53ef`.
+- #14 — closed and merged, M6 wedge pilot end-to-end loop.
+- #13 — closed and merged, M5 Biller surface.
+- #12 — closed and merged, M4 Connect partner hardening.
+- #11 — closed and merged, mismatch dogfood and KYB checklist.
+- #10 — closed and merged, plain-language pass.
+- #9 — closed without merge, Connect/Biller conceptual model.
+- #8 — closed without merge, M1 app scaffold.
+- #7 — closed and merged, school-received confirmation research.
+- #6 — closed and merged, scenario test pack.
+- #5 — closed and merged, Zimbabwe settlement methods decision.
+- #4 — closed and merged, research pack and stack decision.
+- #3 — closed and merged, Bharat Connect study.
+- #2 — closed and merged, durable Senda 4.0 docs.
+- #1 — closed without merge, pivot document.
+
+The pull request inventory is verified; a full review of all PR discussion/review comments and every per-file patch remains outstanding.
+
+## Additional source-level findings confirmed from main
+
+### P1 — Biller session token is forgeable
+File: `apps/web/src/lib/auth.ts`; login route: `apps/web/src/app/api/v1/biller/login/route.ts`.
+
+The cookie payload is JSON encoded as Base64URL. `getBillerSession` decodes and trusts `userId`, `institutionId` and `email`; it does not verify a MAC/signature, look up a server-side session, or check expiry/revocation. The login route sets HttpOnly and SameSite=Lax but does not set Secure explicitly. HttpOnly prevents JavaScript reads; it does not prevent a client constructing a cookie. Treat this as a critical cross-tenant access risk until replaced by authenticated, integrity-protected sessions and verified server-side authorisation.
+
+### P1 — retry-key replay is not partner-scoped
+Files: `apps/web/src/lib/connect.ts`; `apps/web/prisma/schema.prisma`; `apps/web/prisma/migrations/20261119092035_init_domain/migration.sql`.
+
+The schema makes `Attempt.idempotencyKey` globally unique. The existing-attempt lookup uses only `idempotencyKey`. Replay comparison checks link, obligation and amount, but not the calling partner. This creates a cross-partner replay/confidentiality and payment-instruction disclosure risk if two partner credentials use the same retry key and know or can submit the same payment tuple. Scope the key by partner and enforce partner ownership before replay. Add a cross-partner isolation test and a concurrent same-partner retry test.
+
+### P1/P2 — pilot handoff endpoint is unauthenticated
+File: `apps/web/src/app/api/v1/pilot/handoff/route.ts`.
+
+The GET handler accepts an `attempt_id` query parameter and returns organisation, beneficiary/student reference, amount, payment reference, partner, confirmation/reconciliation details and proof metadata. It does not require partner authentication or a Biller session. Its own comment calls it pilot/sandbox glue, but if reachable in a deployed environment it is an unauthenticated data disclosure/IDOR surface. Disable outside local/demo mode or enforce scoped authorisation and minimise returned personal/payment data.
+
+### P1 — partner confirmation is labelled as “proven”
+Files: `apps/web/src/lib/connect.ts`; `apps/web/prisma/schema.prisma`; Connect confirm route.
+
+A matching partner-supplied reference, amount and currency changes attempt/obligation state to `proven` and creates `senda.proof.v1`. The pilot handoff explicitly says this is sandbox partner attestation, not a live MTO webhook or bank-credit feed. The proof payload itself records source, but the lifecycle label and “payment proof” wording can overstate what has been independently verified. Rename or split states into partner-confirmed, credited and biller-allocated, and identify the evidence source prominently. Do not claim bank credit or allocation without independent evidence.
+
+### P2 — proof file is written inside the database transaction
+File: `apps/web/src/lib/proofs.ts`; caller: `apps/web/src/lib/connect.ts`.
+
+Proof JSON is written to local disk before the Prisma transaction commits. A later database failure can leave an orphaned file. Local filesystem storage is also not durable/shared storage for horizontally scaled or ephemeral deployments. Use durable object storage and an outbox/post-commit workflow with retries and integrity checks.
+
+### P2 — destructive seed script
+File: `apps/web/prisma/seed.ts`.
+
+The seed script deletes all records from the domain tables in FK-safe order before recreating demo fixtures. This is appropriate only for an isolated development database. Guard it explicitly against production environments and document that running it destroys existing domain data.
+
+### P2 — school-specific schema constrains the wider biller proposition
+File: `apps/web/prisma/schema.prisma`.
+
+The current model includes `SchoolUser`, `Beneficiary.studentRef`, `grade`, `FeeTemplate` and school-fee terminology. This is acceptable for the first school wedge, but it is not yet a general-purpose biller/account/obligation model for utilities, healthcare, rent or insurance. Generalise only as real second-vertical requirements emerge; avoid premature abstraction.
+
+## Runtime environment discovery
+
+The connected Replit account search returned an app named `senda3.0`, last updated 14 October 2026, not a Senda 4.0 runtime. It is not treated as the target repository or as evidence that Senda 4.0 can be executed. No runtime was launched and no dependency installation, migration, test, lint, typecheck or browser-flow result is claimed in this continuation.
+
+GitHub API access is sufficient to inspect repository trees, file contents, commits, branches and PRs. It is not itself a local shell/runtime. A controlled execution environment still needs to be established against the exact `main` commit before runtime tests can be reported.
+
+## Current completion status
+
+| Workstream | Status |
+|---|---|
+| Repository metadata/default branch | Verified |
+| Main recursive inventory | Verified: 88 file blobs |
+| Ten branch trees | Verified; none truncated |
+| Branch-only files | Identified: two documents |
+| Commit-list pagination | Verified: 33 commits, no second page |
+| PR inventory | Verified: 15 PRs |
+| Every unique text/code blob | In progress; not complete |
+| Every commit diff, including rename/delete history | In progress; not complete |
+| Every PR patch and discussion/review | In progress; not complete |
+| Full research source/claim verification | Not complete |
+| Runtime install/migrate/test/lint/typecheck | Not run |
+| Browser/exercise of application | Not run |
+
+This continuation adds verified inventory and code findings, but does not change the overall audit status to complete. No application code, data, branch or PR has been modified.
